@@ -1,98 +1,222 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Simple Ledger - Double-Entry Accounting System
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A double-entry accounting ledger system built with NestJS and TypeScript. This system allows you to create accounts and record financial transactions following double-entry bookkeeping principles.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **Account Management**: Create and retrieve accounts with debit or credit directions
+- **Transaction Processing**: Record transactions with multiple entries that must balance to zero
+- **Immutable Operations**: Accounts can only be modified through transactions
+- **Precision**: All monetary values are stored as integers (cents) to avoid floating-point errors
+- **In-Memory Storage**: Fast, simple storage for development and testing
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Architecture
 
-## Project setup
+This project follows Domain-Driven Design (DDD) principles with a clear separation of concerns:
 
-```bash
-$ npm install
+```
+/src
+├── /accounts                    # Accounts Domain (Chart of Accounts)
+│   ├── /data                    # Data layer
+│   │   ├── account.entity.ts    # Account entity model
+│   │   ├── create-account.dto.ts # Validation DTO
+│   │   └── account.repository.ts # Data access
+│   ├── /use-cases               # Business logic
+│   │   ├── /create-account      # Create account use case
+│   │   └── /get-account         # Get account use case
+│   └── accounts.module.ts       # Module configuration
+│
+├── /transactions                # Transactions Domain (Journal)
+│   ├── /data                    # Data layer
+│   │   ├── entry.entity.ts      # Entry entity model
+│   │   ├── transaction.entity.ts # Transaction entity model
+│   │   ├── create-transaction.dto.ts # Validation DTO
+│   │   └── transaction.repository.ts # Data access
+│   ├── /use-cases               # Business logic
+│   │   └── /create-transaction  # Create transaction use case
+│   └── transactions.module.ts   # Module configuration
+│
+├── app.module.ts                # Root application module
+└── main.ts                      # Application entry point
 ```
 
-## Compile and run the project
+## Prerequisites
 
+- Node.js (v18 or higher)
+- npm (v9 or higher)
+
+## Setup Instructions
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd simple-ledger
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment (optional)**
+   ```bash
+   cp .env.example .env
+   # Edit .env if you want to change the default port (5000)
+   ```
+
+## Running the Application
+
+### Development Mode
 ```bash
-# development
-$ npm run start
+npm run start:dev
+```
+The server will start on `http://localhost:5000` with hot-reload enabled.
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+### Production Mode
+```bash
+npm run build
+npm run start:prod
 ```
 
-## Run tests
+## API Documentation
 
-```bash
-# unit tests
-$ npm run test
+### Create Account
+**POST** `/accounts`
 
-# e2e tests
-$ npm run test:e2e
+Create a new account with a direction (debit or credit).
 
-# test coverage
-$ npm run test:cov
+**Request Body:**
+```json
+{
+  "id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd",  // Optional
+  "name": "Cash Account",                         // Optional
+  "balance": 0,                                   // Optional, in cents
+  "direction": "debit"                            // Required: "debit" or "credit"
+}
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+**Response:**
+```json
+{
+  "id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd",
+  "name": "Cash Account",
+  "balance": 0,
+  "direction": "debit"
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Get Account
+**GET** `/accounts/:id`
 
-## Resources
+Retrieve an account by its ID.
 
-Check out a few resources that may come in handy when working with NestJS:
+**Response:**
+```json
+{
+  "id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd",
+  "name": "Cash Account",
+  "balance": 0,
+  "direction": "debit"
+}
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Create Transaction
+**POST** `/transactions`
 
-## Support
+Create a transaction with multiple entries. The sum of debits must equal the sum of credits.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+**Request Body:**
+```json
+{
+  "id": "3256dc3c-7b18-4a21-95c6-146747cf2971",  // Optional
+  "name": "Payment for services",                 // Optional
+  "entries": [
+    {
+      "direction": "debit",
+      "account_id": "fa967ec9-5be2-4c26-a874-7eeeabfc6da8",
+      "amount": 10000  // $100.00 in cents
+    },
+    {
+      "direction": "credit",
+      "account_id": "dbf17d00-8701-4c4e-9fc5-6ae33c324309",
+      "amount": 10000  // $100.00 in cents
+    }
+  ]
+}
+```
 
-## Stay in touch
+**Response:**
+```json
+{
+  "id": "3256dc3c-7b18-4a21-95c6-146747cf2971",
+  "name": "Payment for services",
+  "entries": [
+    {
+      "id": "9f694f8c-9c4c-44cf-9ca9-0cb1a318f0a7",
+      "account_id": "fa967ec9-5be2-4c26-a874-7eeeabfc6da8",
+      "amount": 10000,
+      "direction": "debit"
+    },
+    {
+      "id": "a5c1b7f0-e52e-4ab6-8f31-c380c2223efa",
+      "account_id": "dbf17d00-8701-4c4e-9fc5-6ae33c324309",
+      "amount": 10000,
+      "direction": "credit"
+    }
+  ]
+}
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## How Account Balances Work
+
+When an entry is applied to an account:
+- **Same direction**: Balance increases (debit entry to debit account = +amount)
+- **Different direction**: Balance decreases (credit entry to debit account = -amount)
+
+| Starting Balance | Account Direction | Entry Direction | Entry Amount | Ending Balance |
+|-----------------|-------------------|-----------------|--------------|----------------|
+| 0               | debit             | debit           | 100          | 100            |
+| 0               | credit            | credit          | 100          | 100            |
+| 100             | debit             | credit          | 100          | 0              |
+| 100             | credit            | debit           | 100          | 0              |
+
+## Running Tests
+
+```bash
+# Unit tests
+npm run test
+
+# E2E tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+## Development
+
+```bash
+# Format code
+npm run format
+
+# Lint code
+npm run lint
+```
+
+## Key Design Decisions
+
+1. **Integer Monetary Values**: All amounts are stored as integers (cents) to avoid floating-point precision errors.
+
+2. **Immutability**: Transaction processing follows a strict pattern:
+   - Validate all business rules first
+   - Fetch required data
+   - Calculate new state in memory
+   - Commit all changes atomically
+
+3. **Dependency Injection**: Full use of NestJS DI for testability and maintainability.
+
+4. **Domain-Driven Design**: Clear separation between Accounts (chart of accounts) and Transactions (journal) domains.
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED
