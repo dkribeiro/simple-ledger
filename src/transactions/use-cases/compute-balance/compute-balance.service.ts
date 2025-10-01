@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { AccountRepository } from '../../../accounts/data/account.repository';
 import { TransactionRepository } from '../../data/transaction.repository';
 import { Transaction } from '../../data/transaction.entity';
+import { Account } from '../../../accounts/data/account.entity';
 
 @Injectable()
 export class ComputeBalanceService {
   constructor(
-    private readonly accountRepository: AccountRepository,
     private readonly transactionRepository: TransactionRepository,
   ) {}
 
@@ -16,16 +15,17 @@ export class ComputeBalanceService {
    *
    * This prevents race conditions since the balance is never directly mutated,
    * only calculated from the immutable transaction history.
+   *
+   * @param account - The account entity (must be already fetched)
+   * @returns The computed balance (closed_balance + unreconciled transactions)
    */
-  execute(accountId: string): number {
-    const account = this.accountRepository.findByIdOrFail(accountId);
-
+  execute(account: Account): number {
     // Start with the closed/snapshot balance (from reconciled transactions)
     let balance = account.closed_balance;
 
     // Get all unreconciled transactions for this account (where reconciled_at IS NULL)
     const unreconciledTransactions =
-      this.transactionRepository.findUnreconciledByAccountId(accountId);
+      this.transactionRepository.findUnreconciledByAccountId(account.id);
 
     // Process unreconciled transactions
     for (const transaction of unreconciledTransactions) {

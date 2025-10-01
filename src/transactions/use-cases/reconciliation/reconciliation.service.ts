@@ -128,7 +128,7 @@ export class ReconciliationService {
         const previousBalance = account.closed_balance;
 
         // Compute new balance (should now equal closed_balance since all are reconciled)
-        const newBalance = this.computeBalanceService.execute(accountId);
+        const newBalance = this.computeBalanceService.execute(account);
 
         // Count how many unreconciled transactions were for this account
         const accountTransactions =

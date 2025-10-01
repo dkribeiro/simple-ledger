@@ -15,7 +15,7 @@ export class CreateAccountController {
     const account = this.createAccountService.execute(dto);
 
     // Return account with computed balance for consistency
-    const balance = this.computeBalanceService.execute(account.id);
+    const balance = this.computeBalanceService.execute(account);
 
     return {
       id: account.id,
