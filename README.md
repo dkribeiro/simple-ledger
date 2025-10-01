@@ -17,25 +17,26 @@ This project follows Domain-Driven Design (DDD) principles with a clear separati
 ```
 /src
 ├── /accounts                    # Accounts Domain (Chart of Accounts)
-│   ├── /data                    # Data layer
+│   ├── /data                    # Persistence layer
 │   │   ├── account.entity.ts    # Account entity model
-│   │   ├── create-account.dto.ts # Validation DTO
 │   │   └── account.repository.ts # Data access
+│   ├── /dto                     # API contracts & validation
+│   │   └── create-account.dto.ts # Validation DTO
 │   ├── /use-cases               # Business logic
 │   │   ├── /create-account      # Create account use case
-│   │   ├── /get-account         # Get account use case
-│   │   └── /reconcile-account   # Reconcile account (controller only)
+│   │   └── /get-account         # Get account use case
 │   └── accounts.module.ts       # Module configuration
 │
-├── /transactions                # Transactions Domain (Journal)
-│   ├── /data                    # Data layer
-│   │   ├── entry.entity.ts      # Entry entity (denormalized with transaction metadata)
-│   │   ├── entry.repository.ts  # Single repository for all entries
+├── /transactions                # Transactions Domain (Journal & Reconciliation)
+│   ├── /data                    # Persistence layer
+│   │   ├── transaction.entity.ts # Transaction entity (denormalized)
+│   │   └── transaction.repository.ts # Single repository for all transactions
+│   ├── /dto                     # API contracts & validation
 │   │   └── create-transaction.dto.ts # Validation DTO
 │   ├── /use-cases               # Business logic
 │   │   ├── /create-transaction  # Create transaction use case
 │   │   ├── /compute-balance     # Compute account balance
-│   │   └── /reconcile-account   # Reconcile account (service)
+│   │   └── /reconciliation      # System-wide reconciliation
 │   └── transactions.module.ts   # Module configuration
 │
 ├── app.module.ts                # Root application module
@@ -50,12 +51,14 @@ This project follows Domain-Driven Design (DDD) principles with a clear separati
 ## Setup Instructions
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd simple-ledger
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
@@ -69,12 +72,15 @@ This project follows Domain-Driven Design (DDD) principles with a clear separati
 ## Running the Application
 
 ### Development Mode
+
 ```bash
 npm run start:dev
 ```
+
 The server will start on `http://localhost:5000` with hot-reload enabled.
 
 ### Production Mode
+
 ```bash
 npm run build
 npm run start:prod
@@ -83,21 +89,24 @@ npm run start:prod
 ## API Documentation
 
 ### Create Account
+
 **POST** `/accounts`
 
 Create a new account with a direction (debit or credit).
 
 **Request Body:**
+
 ```json
 {
-  "id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd",  // Optional
-  "name": "Cash Account",                         // Optional
-  "closed_balance": 0,                            // Optional, initial balance in cents
-  "direction": "debit"                            // Required: "debit" or "credit"
+  "id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd", // Optional
+  "name": "Cash Account", // Optional
+  "closed_balance": 0, // Optional, initial balance in cents
+  "direction": "debit" // Required: "debit" or "credit"
 }
 ```
 
 **Response:**
+
 ```json
 {
   "id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd",
@@ -108,11 +117,13 @@ Create a new account with a direction (debit or credit).
 ```
 
 ### Get Account
+
 **GET** `/accounts/:id`
 
 Retrieve an account by its ID. The balance is computed in real-time from the closed balance plus all unclosed transactions.
 
 **Response:**
+
 ```json
 {
   "id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd",
@@ -122,54 +133,81 @@ Retrieve an account by its ID. The balance is computed in real-time from the clo
 }
 ```
 
-### Reconcile Account
-**POST** `/accounts/:id/reconcile`
+### Reconciliation
 
-Reconciles an account by marking all unreconciled transactions as reconciled and creating a balance snapshot. This:
-- Verifies all transactions are balanced
-- Computes the current balance from all transactions
-- Marks all unreconciled transactions affecting this account as `reconciled: true`
-- Updates the account's closed_balance snapshot
-- Improves performance by reducing transaction scans
+**POST** `/accounts/reconcile-all`
+
+Reconciles all unreconciled transactions in the system. This is the **ONLY** way to reconcile transactions.
+
+**Important:** Reconciliation operates on transactions, not individual accounts. When you reconcile, ALL unreconciled transaction groups are marked as reconciled system-wide, ensuring consistency across all accounts.
+
+Useful for:
+
+- End-of-period closing (month-end, year-end)
+- System-wide reconciliation
+- Batch processing
+
+This endpoint:
+
+- Verifies all transaction groups balance to zero (integrity check)
+- Marks ALL unreconciled transactions as reconciled
+- Updates `closed_balance` for all affected accounts
+- Returns a summary of all reconciliations
 
 **Response:**
+
 ```json
 {
-  "account_id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd",
-  "previous_closed_balance": 0,
-  "new_closed_balance": 10000,
   "reconciled_at": "2025-10-01T12:00:00.000Z",
-  "transactions_reconciled": 5,
-  "integrity_check_passed": true
+  "total_accounts_reconciled": 3,
+  "total_transaction_groups_reconciled": 8,
+  "integrity_check_passed": true,
+  "accounts": [
+    {
+      "account_id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd",
+      "previous_closed_balance": 0,
+      "new_closed_balance": 10000,
+      "transactions_included": 5
+    },
+    {
+      "account_id": "dbf17d00-8701-4c4e-9fc5-6ae33c324309",
+      "previous_closed_balance": 5000,
+      "new_closed_balance": 15000,
+      "transactions_included": 10
+    }
+  ]
 }
 ```
 
 ### Create Transaction
+
 **POST** `/transactions`
 
 Create a transaction with multiple entries. The sum of debits must equal the sum of credits.
 
 **Request Body:**
+
 ```json
 {
-  "id": "3256dc3c-7b18-4a21-95c6-146747cf2971",  // Optional
-  "name": "Payment for services",                 // Optional
+  "id": "3256dc3c-7b18-4a21-95c6-146747cf2971", // Optional
+  "name": "Payment for services", // Optional
   "entries": [
     {
       "direction": "debit",
       "account_id": "fa967ec9-5be2-4c26-a874-7eeeabfc6da8",
-      "amount": 10000  // $100.00 in cents
+      "amount": 10000 // $100.00 in cents
     },
     {
       "direction": "credit",
       "account_id": "dbf17d00-8701-4c4e-9fc5-6ae33c324309",
-      "amount": 10000  // $100.00 in cents
+      "amount": 10000 // $100.00 in cents
     }
   ]
 }
 ```
 
 **Response:**
+
 ```json
 {
   "id": "3256dc3c-7b18-4a21-95c6-146747cf2971",
@@ -193,36 +231,37 @@ Create a transaction with multiple entries. The sum of debits must equal the sum
 
 ## How Account Balances Work
 
-### Entry Direction Rules
+### Transaction Direction Rules
 
-When an entry is applied to an account:
-- **Same direction**: Balance increases (debit entry to debit account = +amount)
-- **Different direction**: Balance decreases (credit entry to debit account = -amount)
+When a transaction line is applied to an account:
 
-| Starting Balance | Account Direction | Entry Direction | Entry Amount | Ending Balance |
-|-----------------|-------------------|-----------------|--------------|----------------|
-| 0               | debit             | debit           | 100          | 100            |
-| 0               | credit            | credit          | 100          | 100            |
-| 100             | debit             | credit          | 100          | 0              |
-| 100             | credit            | debit           | 100          | 0              |
+- **Same direction**: Balance increases (debit transaction to debit account = +amount)
+- **Different direction**: Balance decreases (credit transaction to debit account = -amount)
+
+| Starting Balance | Account Direction | Transaction Direction | Transaction Amount | Ending Balance |
+| ---------------- | ----------------- | --------------------- | ------------------ | -------------- |
+| 0                | debit             | debit                 | 100                | 100            |
+| 0                | credit            | credit                | 100                | 100            |
+| 100              | debit             | credit                | 100                | 0              |
+| 100              | credit            | debit                 | 100                | 0              |
 
 ### Balance Calculation with Reconciliation
 
 ```
 Account created → closed_balance: 0
 
-Entry 1 (+$1.00) [reconciled_at: null] → balance: 0 + 100 = 100 cents
-Entry 2 (+$0.50) [reconciled_at: null] → balance: 0 + 100 + 50 = 150 cents
-Entry 3 (-$0.30) [reconciled_at: null] → balance: 0 + 100 + 50 - 30 = 120 cents
+Transaction 1 (+$1.00) [reconciled_at: null] → balance: 0 + 100 = 100 cents
+Transaction 2 (+$0.50) [reconciled_at: null] → balance: 0 + 100 + 50 = 150 cents
+Transaction 3 (-$0.30) [reconciled_at: null] → balance: 0 + 100 + 50 - 30 = 120 cents
 
-Reconcile called → Mark entries 1-3 as reconciled (set reconciled_at timestamp)
-                 → closed_balance updated to: 120 cents
+Reconciliation called → Mark ALL unreconciled transactions as reconciled (set reconciled_at)
+                      → closed_balance updated to: 120 cents for all affected accounts
 
-Entry 4 (+$0.25) [reconciled_at: null] → balance: 120 + 25 = 145 cents
-Entry 5 (-$0.10) [reconciled_at: null] → balance: 120 + 25 - 10 = 135 cents
+Transaction 4 (+$0.25) [reconciled_at: null] → balance: 120 + 25 = 145 cents
+Transaction 5 (-$0.10) [reconciled_at: null] → balance: 120 + 25 - 10 = 135 cents
 
 GET /accounts/:id → returns balance: 135 cents ($1.35)
-                 → Only scans entries 4 & 5 (WHERE reconciled_at IS NULL)!
+                 → Only scans transactions 4 & 5 (WHERE reconciled_at IS NULL)!
 ```
 
 ## Running Tests
@@ -258,28 +297,30 @@ npm run lint
    - No locking mechanisms needed for concurrent transactions
    - Full audit trail is always maintained
 
-3. **Transaction-Based Reconciliation**: Reconciliation marks entries (not accounts) as processed:
-   - Entries have a `reconciled_at: Date | null` field
+3. **System-Wide Reconciliation**: Reconciliation is a system-wide process (not account-specific):
+   - **Only one endpoint**: `POST /accounts/reconcile-all` reconciles ALL unreconciled transactions
+   - No single-account reconciliation (would violate double-entry consistency)
+   - Transactions have a `reconciled_at: Date | null` field
    - `null` = unreconciled, `Date` = when it was reconciled (audit trail!)
-   - Verifies transaction integrity before reconciling
-   - Marks all unreconciled entries for a transaction with `reconciled_at` timestamp
-   - Creates a balance checkpoint (closed_balance) for performance
-   - Reduces the number of entries to scan for balance calculation
+   - Verifies ALL transaction groups balance to zero before reconciling
+   - Marks ALL unreconciled transactions as reconciled atomically
+   - Updates `closed_balance` for all affected accounts
+   - Reduces the number of transactions to scan for balance calculation
    - Similar to month-end closing in traditional accounting
 
-4. **Denormalized Entry Structure**: Simple, pragmatic data model:
-   - Single Entry entity contains both entry data and transaction metadata
-   - All entries with the same `transaction_id` belong to one transaction
-   - Transaction metadata (name, created_at, reconciled_at) duplicated across entries
+4. **Denormalized Transaction Structure**: Simple, pragmatic data model:
+   - Single Transaction entity contains both transaction line data and group metadata
+   - All transactions with the same `transaction_id` belong to one transaction group
+   - Transaction metadata (name, created_at, reconciled_at) duplicated across lines
    - Minimal duplication cost (4 fields) with huge simplicity benefit
    - One repository, one entity - much simpler than normalized structure
    - Still maintains SQL-like queryability with proper indexes
 
-5. **Immutability**: Entry processing follows a strict pattern:
+5. **Immutability**: Transaction processing follows a strict pattern:
    - Validate all business rules first
    - Fetch required data
-   - Entries are append-only (never modified after creation)
-   - Only the `reconciled_at` timestamp and closed_balance are updated during reconciliation
+   - Transactions are append-only (never modified after creation)
+   - Only the `reconciled_at` timestamp and `closed_balance` are updated during reconciliation
    - Transaction metadata (name, created_at) is immutable once written
 
 6. **Dependency Injection**: Full use of NestJS DI for testability and maintainability.

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AccountRepository } from '../../data/account.repository';
-import { CreateAccountDto } from '../../data/create-account.dto';
+import { CreateAccountDto } from '../../dto/create-account.dto';
 import { Account } from '../../data/account.entity';
 
 @Injectable()

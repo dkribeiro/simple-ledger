@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { TransactionRepository } from '../../data/transaction.repository';
-import { CreateTransactionDto } from '../../data/create-transaction.dto';
+import { CreateTransactionDto } from '../../dto/create-transaction.dto';
 import { Transaction } from '../../data/transaction.entity';
 import { AccountRepository } from '../../../accounts/data/account.repository';
 
