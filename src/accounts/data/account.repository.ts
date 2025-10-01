@@ -22,8 +22,12 @@ export class AccountRepository {
     return account;
   }
 
-  updateBalance(id: string, newBalance: number): void {
+  /**
+   * Update the closed balance during reconciliation.
+   * This creates a snapshot of the account balance from reconciled transactions.
+   */
+  updateClosedBalance(id: string, newClosedBalance: number): void {
     const account = this.findByIdOrFail(id);
-    account.balance = newBalance;
+    account.closed_balance = newClosedBalance;
   }
 }

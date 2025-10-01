@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class CreateEntryDto {
+export class CreateTransactionLineDto {
   @IsOptional()
   @IsUUID()
   id?: string;
@@ -37,6 +37,6 @@ export class CreateTransactionDto {
 
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateEntryDto)
-  entries!: CreateEntryDto[];
+  @Type(() => CreateTransactionLineDto)
+  entries!: CreateTransactionLineDto[];
 }

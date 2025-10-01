@@ -23,17 +23,19 @@ This project follows Domain-Driven Design (DDD) principles with a clear separati
 │   │   └── account.repository.ts # Data access
 │   ├── /use-cases               # Business logic
 │   │   ├── /create-account      # Create account use case
-│   │   └── /get-account         # Get account use case
+│   │   ├── /get-account         # Get account use case
+│   │   └── /reconcile-account   # Reconcile account (controller only)
 │   └── accounts.module.ts       # Module configuration
 │
 ├── /transactions                # Transactions Domain (Journal)
 │   ├── /data                    # Data layer
-│   │   ├── entry.entity.ts      # Entry entity model
-│   │   ├── transaction.entity.ts # Transaction entity model
-│   │   ├── create-transaction.dto.ts # Validation DTO
-│   │   └── transaction.repository.ts # Data access
+│   │   ├── entry.entity.ts      # Entry entity (denormalized with transaction metadata)
+│   │   ├── entry.repository.ts  # Single repository for all entries
+│   │   └── create-transaction.dto.ts # Validation DTO
 │   ├── /use-cases               # Business logic
-│   │   └── /create-transaction  # Create transaction use case
+│   │   ├── /create-transaction  # Create transaction use case
+│   │   ├── /compute-balance     # Compute account balance
+│   │   └── /reconcile-account   # Reconcile account (service)
 │   └── transactions.module.ts   # Module configuration
 │
 ├── app.module.ts                # Root application module
@@ -90,7 +92,7 @@ Create a new account with a direction (debit or credit).
 {
   "id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd",  // Optional
   "name": "Cash Account",                         // Optional
-  "balance": 0,                                   // Optional, in cents
+  "closed_balance": 0,                            // Optional, initial balance in cents
   "direction": "debit"                            // Required: "debit" or "credit"
 }
 ```
@@ -108,7 +110,7 @@ Create a new account with a direction (debit or credit).
 ### Get Account
 **GET** `/accounts/:id`
 
-Retrieve an account by its ID.
+Retrieve an account by its ID. The balance is computed in real-time from the closed balance plus all unclosed transactions.
 
 **Response:**
 ```json
@@ -117,6 +119,28 @@ Retrieve an account by its ID.
   "name": "Cash Account",
   "balance": 0,
   "direction": "debit"
+}
+```
+
+### Reconcile Account
+**POST** `/accounts/:id/reconcile`
+
+Reconciles an account by marking all unreconciled transactions as reconciled and creating a balance snapshot. This:
+- Verifies all transactions are balanced
+- Computes the current balance from all transactions
+- Marks all unreconciled transactions affecting this account as `reconciled: true`
+- Updates the account's closed_balance snapshot
+- Improves performance by reducing transaction scans
+
+**Response:**
+```json
+{
+  "account_id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd",
+  "previous_closed_balance": 0,
+  "new_closed_balance": 10000,
+  "reconciled_at": "2025-10-01T12:00:00.000Z",
+  "transactions_reconciled": 5,
+  "integrity_check_passed": true
 }
 ```
 
@@ -169,6 +193,8 @@ Create a transaction with multiple entries. The sum of debits must equal the sum
 
 ## How Account Balances Work
 
+### Entry Direction Rules
+
 When an entry is applied to an account:
 - **Same direction**: Balance increases (debit entry to debit account = +amount)
 - **Different direction**: Balance decreases (credit entry to debit account = -amount)
@@ -179,6 +205,25 @@ When an entry is applied to an account:
 | 0               | credit            | credit          | 100          | 100            |
 | 100             | debit             | credit          | 100          | 0              |
 | 100             | credit            | debit           | 100          | 0              |
+
+### Balance Calculation with Reconciliation
+
+```
+Account created → closed_balance: 0
+
+Entry 1 (+$1.00) [reconciled_at: null] → balance: 0 + 100 = 100 cents
+Entry 2 (+$0.50) [reconciled_at: null] → balance: 0 + 100 + 50 = 150 cents
+Entry 3 (-$0.30) [reconciled_at: null] → balance: 0 + 100 + 50 - 30 = 120 cents
+
+Reconcile called → Mark entries 1-3 as reconciled (set reconciled_at timestamp)
+                 → closed_balance updated to: 120 cents
+
+Entry 4 (+$0.25) [reconciled_at: null] → balance: 120 + 25 = 145 cents
+Entry 5 (-$0.10) [reconciled_at: null] → balance: 120 + 25 - 10 = 135 cents
+
+GET /accounts/:id → returns balance: 135 cents ($1.35)
+                 → Only scans entries 4 & 5 (WHERE reconciled_at IS NULL)!
+```
 
 ## Running Tests
 
@@ -207,15 +252,39 @@ npm run lint
 
 1. **Integer Monetary Values**: All amounts are stored as integers (cents) to avoid floating-point precision errors.
 
-2. **Immutability**: Transaction processing follows a strict pattern:
+2. **Event-Sourced Balances**: Account balances are never directly mutated. Instead, they are computed on-demand from transaction history:
+   - `current_balance = closed_balance + sum(unreconciled_transactions)`
+   - This prevents race conditions since balance is derived, not stored
+   - No locking mechanisms needed for concurrent transactions
+   - Full audit trail is always maintained
+
+3. **Transaction-Based Reconciliation**: Reconciliation marks entries (not accounts) as processed:
+   - Entries have a `reconciled_at: Date | null` field
+   - `null` = unreconciled, `Date` = when it was reconciled (audit trail!)
+   - Verifies transaction integrity before reconciling
+   - Marks all unreconciled entries for a transaction with `reconciled_at` timestamp
+   - Creates a balance checkpoint (closed_balance) for performance
+   - Reduces the number of entries to scan for balance calculation
+   - Similar to month-end closing in traditional accounting
+
+4. **Denormalized Entry Structure**: Simple, pragmatic data model:
+   - Single Entry entity contains both entry data and transaction metadata
+   - All entries with the same `transaction_id` belong to one transaction
+   - Transaction metadata (name, created_at, reconciled_at) duplicated across entries
+   - Minimal duplication cost (4 fields) with huge simplicity benefit
+   - One repository, one entity - much simpler than normalized structure
+   - Still maintains SQL-like queryability with proper indexes
+
+5. **Immutability**: Entry processing follows a strict pattern:
    - Validate all business rules first
    - Fetch required data
-   - Calculate new state in memory
-   - Commit all changes atomically
+   - Entries are append-only (never modified after creation)
+   - Only the `reconciled_at` timestamp and closed_balance are updated during reconciliation
+   - Transaction metadata (name, created_at) is immutable once written
 
-3. **Dependency Injection**: Full use of NestJS DI for testability and maintainability.
+6. **Dependency Injection**: Full use of NestJS DI for testability and maintainability.
 
-4. **Domain-Driven Design**: Clear separation between Accounts (chart of accounts) and Transactions (journal) domains.
+7. **Domain-Driven Design**: Clear separation between Accounts (chart of accounts) and Transactions (journal) domains.
 
 ## License
 

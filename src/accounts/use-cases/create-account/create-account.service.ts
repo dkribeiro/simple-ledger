@@ -11,7 +11,7 @@ export class CreateAccountService {
     const account = new Account({
       id: dto.id,
       name: dto.name,
-      balance: dto.balance ?? 0,
+      closed_balance: dto.closed_balance ?? 0,
       direction: dto.direction,
     });
 

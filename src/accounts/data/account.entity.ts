@@ -5,13 +5,17 @@ export type AccountDirection = 'debit' | 'credit';
 export class Account {
   id: string;
   name?: string;
-  balance: number; // Stored as integer (cents)
   direction: AccountDirection;
+
+  // Event-sourced balance: Instead of storing a mutable balance,
+  // we maintain a "closed" snapshot and calculate the current balance
+  // from the closed balance + unreconciled transactions
+  closed_balance: number; // Snapshot of balance from reconciled transactions (cents)
 
   constructor(partial: Partial<Account>) {
     this.id = partial.id || uuidv4();
     this.name = partial.name;
-    this.balance = partial.balance ?? 0;
     this.direction = partial.direction!;
+    this.closed_balance = partial.closed_balance ?? 0;
   }
 }

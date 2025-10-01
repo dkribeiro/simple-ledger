@@ -10,6 +10,18 @@ export class CreateTransactionController {
 
   @Post()
   create(@Body() dto: CreateTransactionDto) {
-    return this.createTransactionService.execute(dto);
+    const { id, name, entries } = this.createTransactionService.execute(dto);
+
+    // Return in the expected API format
+    return {
+      id,
+      name,
+      entries: entries.map((entry) => ({
+        id: entry.id,
+        account_id: entry.account_id,
+        amount: entry.amount,
+        direction: entry.direction,
+      })),
+    };
   }
 }

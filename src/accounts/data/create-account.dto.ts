@@ -19,7 +19,7 @@ export class CreateAccountDto {
   @IsOptional()
   @IsInt()
   @Min(0)
-  balance?: number; // Integer (cents)
+  closed_balance?: number; // Integer (cents) - initial closed balance
 
   @IsIn(['debit', 'credit'])
   direction!: 'debit' | 'credit';

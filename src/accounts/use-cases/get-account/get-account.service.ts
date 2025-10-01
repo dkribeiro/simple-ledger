@@ -1,12 +1,32 @@
 import { Injectable } from '@nestjs/common';
 import { AccountRepository } from '../../data/account.repository';
-import { Account } from '../../data/account.entity';
+import { ComputeBalanceService } from '../../../transactions/use-cases/compute-balance/compute-balance.service';
+
+export interface AccountWithBalance {
+  id: string;
+  name?: string;
+  balance: number;
+  direction: 'debit' | 'credit';
+}
 
 @Injectable()
 export class GetAccountService {
-  constructor(private readonly accountRepository: AccountRepository) {}
+  constructor(
+    private readonly accountRepository: AccountRepository,
+    private readonly computeBalanceService: ComputeBalanceService,
+  ) {}
 
-  execute(id: string): Account {
-    return this.accountRepository.findByIdOrFail(id);
+  execute(id: string): AccountWithBalance {
+    const account = this.accountRepository.findByIdOrFail(id);
+
+    // Compute the current balance from closed_balance + unclosed transactions
+    const balance = this.computeBalanceService.execute(id);
+
+    return {
+      id: account.id,
+      name: account.name,
+      balance,
+      direction: account.direction,
+    };
   }
 }
