@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TransactionRepository } from './data/transaction.repository';
 import { CreateTransactionService } from './use-cases/create-transaction/create-transaction.service';
 import { CreateTransactionController } from './use-cases/create-transaction/create-transaction.controller';
@@ -8,7 +8,7 @@ import { ReconciliationController } from './use-cases/reconciliation/reconciliat
 import { AccountsModule } from '../accounts/accounts.module';
 
 @Module({
-  imports: [AccountsModule], // Import AccountsModule to access AccountRepository
+  imports: [forwardRef(() => AccountsModule)], // Use forwardRef to resolve circular dependency
   providers: [
     TransactionRepository, // Single repository for denormalized transactions
     CreateTransactionService,

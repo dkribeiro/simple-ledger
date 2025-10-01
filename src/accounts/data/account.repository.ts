@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Account } from './account.entity';
 
 @Injectable()
@@ -23,11 +27,37 @@ export class AccountRepository {
   }
 
   /**
-   * Update the closed balance during reconciliation.
+   * Update the closed balance during reconciliation with optimistic locking.
    * This creates a snapshot of the account balance from reconciled transactions.
+   *
+   * Uses version checking to prevent race conditions:
+   * - Checks that the current version matches the expected version
+   * - If versions match: updates balance and increments version
+   * - If versions don't match: throws ConflictException (another update occurred)
+   *
+   * @param id - Account ID
+   * @param newClosedBalance - New closed balance value
+   * @param expectedVersion - Expected current version (for optimistic locking)
+   * @throws ConflictException if version mismatch (concurrent update detected)
    */
-  updateClosedBalance(id: string, newClosedBalance: number): void {
+  updateClosedBalance(
+    id: string,
+    newClosedBalance: number,
+    expectedVersion: number,
+  ): void {
     const account = this.findByIdOrFail(id);
+
+    // Optimistic locking: Check version matches
+    if (account.version !== expectedVersion) {
+      throw new ConflictException(
+        `Account ${id} was modified by another operation. ` +
+          `Expected version ${expectedVersion}, found ${account.version}. ` +
+          `Retry the operation.`,
+      );
+    }
+
+    // Update balance and increment version atomically
     account.closed_balance = newClosedBalance;
+    account.version = expectedVersion + 1;
   }
 }

@@ -77,7 +77,7 @@ This project follows Domain-Driven Design (DDD) principles with a clear separati
 npm run start:dev
 ```
 
-The server will start on `http://localhost:5000` with hot-reload enabled.
+The server will start on `http://localhost:3000` with hot-reload enabled.
 
 ### Production Mode
 
@@ -86,7 +86,19 @@ npm run build
 npm run start:prod
 ```
 
-## API Documentation
+## Interactive API Documentation (Swagger)
+
+This project includes interactive API documentation powered by Swagger/OpenAPI.
+
+**📚 Access the Swagger UI at:** `http://localhost:3000/docs`
+
+The Swagger UI provides:
+- 📖 Complete API reference with request/response schemas
+- 🧪 Interactive "Try it out" functionality to test endpoints directly
+- 📝 Detailed descriptions of all parameters and responses
+- 🏷️ Endpoints organized by tags (Accounts, Transactions)
+
+## API Endpoints Reference
 
 ### Create Account
 
@@ -141,17 +153,20 @@ Reconciles all unreconciled transactions in the system. This is the **ONLY** way
 
 **Important:** Reconciliation operates on transactions, not individual accounts. When you reconcile, ALL unreconciled transaction groups are marked as reconciled system-wide, ensuring consistency across all accounts.
 
-Useful for:
+**Purpose:** This is primarily a **performance optimization** mechanism. By creating balance snapshots (`closed_balance`), account queries only need to sum unreconciled transactions instead of scanning the entire transaction history. Run this frequently based on transaction volume, not just at period-end.
 
-- End-of-period closing (month-end, year-end)
-- System-wide reconciliation
-- Batch processing
+When to reconcile:
+
+- **Regular performance maintenance** - Run hourly, daily, or based on transaction volume
+- **End-of-period closing** - Day, month, quarter, year-end
+- **After bulk imports** - When importing many transactions at once
+- **When queries slow down** - If account balance calculations become slow
 
 This endpoint:
 
 - Verifies all transaction groups balance to zero (integrity check)
 - Marks ALL unreconciled transactions as reconciled
-- Updates `closed_balance` for all affected accounts
+- Updates `closed_balance` for all affected accounts (performance snapshot)
 - Returns a summary of all reconciliations
 
 **Response:**
@@ -297,18 +312,32 @@ npm run lint
    - No locking mechanisms needed for concurrent transactions
    - Full audit trail is always maintained
 
-3. **System-Wide Reconciliation**: Reconciliation is a system-wide process (not account-specific):
+3. **Optimistic Locking for Reconciliation**: Race-condition protection for concurrent updates:
+   - Each account has a `version` field that increments on every `closed_balance` update
+   - When updating during reconciliation:
+     1. Read account and capture current version
+     2. Compute new closed_balance
+     3. Attempt update with version check
+     4. If version mismatch → another update occurred → retry
+   - Automatic retry with exponential backoff (up to 10 retries)
+   - Simple reconciliation lock prevents multiple simultaneous reconciliations
+   - **Result**: Safe for high-concurrency scenarios without pessimistic locking
+   - Reconciliation response includes `retries` count per account for monitoring
+
+4. **System-Wide Reconciliation**: Performance optimization through balance snapshots:
+   - **Primary purpose**: Creates `closed_balance` snapshots to avoid scanning all transactions on every account query
    - **Only one endpoint**: `POST /accounts/reconcile-all` reconciles ALL unreconciled transactions
    - No single-account reconciliation (would violate double-entry consistency)
    - Transactions have a `reconciled_at: Date | null` field
    - `null` = unreconciled, `Date` = when it was reconciled (audit trail!)
    - Verifies ALL transaction groups balance to zero before reconciling
    - Marks ALL unreconciled transactions as reconciled atomically
-   - Updates `closed_balance` for all affected accounts
-   - Reduces the number of transactions to scan for balance calculation
-   - Similar to month-end closing in traditional accounting
+   - Updates `closed_balance` for all affected accounts (performance snapshot)
+   - **Run frequently** based on transaction volume (hourly/daily), not just at period-end
+   - After reconciliation, balance queries only need to sum unreconciled transactions
+   - Similar to checkpoints in databases or snapshots in event sourcing
 
-4. **Denormalized Transaction Structure**: Simple, pragmatic data model:
+5. **Denormalized Transaction Structure**: Simple, pragmatic data model:
    - Single Transaction entity contains both transaction line data and group metadata
    - All transactions with the same `transaction_id` belong to one transaction group
    - Transaction metadata (name, created_at, reconciled_at) duplicated across lines
@@ -316,16 +345,16 @@ npm run lint
    - One repository, one entity - much simpler than normalized structure
    - Still maintains SQL-like queryability with proper indexes
 
-5. **Immutability**: Transaction processing follows a strict pattern:
+6. **Immutability**: Transaction processing follows a strict pattern:
    - Validate all business rules first
    - Fetch required data
    - Transactions are append-only (never modified after creation)
-   - Only the `reconciled_at` timestamp and `closed_balance` are updated during reconciliation
+   - Only the `reconciled_at` timestamp, `closed_balance`, and `version` are updated during reconciliation
    - Transaction metadata (name, created_at) is immutable once written
 
-6. **Dependency Injection**: Full use of NestJS DI for testability and maintainability.
+7. **Dependency Injection**: Full use of NestJS DI for testability and maintainability.
 
-7. **Domain-Driven Design**: Clear separation between Accounts (chart of accounts) and Transactions (journal) domains.
+8. **Domain-Driven Design**: Clear separation between Accounts (chart of accounts) and Transactions (journal) domains.
 
 ## License
 
