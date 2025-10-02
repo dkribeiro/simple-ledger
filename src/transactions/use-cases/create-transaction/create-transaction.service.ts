@@ -5,6 +5,7 @@ import { CreateTransactionDto } from '../../dto/create-transaction.dto';
 import { Transaction } from '../../data/transaction.entity';
 import { AccountRepository } from '../../../accounts/data/account.repository';
 import { validateTransactionBalance } from '../../shared/validate-transaction-balance';
+import { TransactionResponse } from '../../dto/transaction-response.dto';
 
 @Injectable()
 export class CreateTransactionService {
@@ -13,11 +14,7 @@ export class CreateTransactionService {
     private readonly accountRepository: AccountRepository,
   ) {}
 
-  execute(dto: CreateTransactionDto): {
-    id: string;
-    name?: string;
-    entries: Transaction[];
-  } {
+  execute(dto: CreateTransactionDto): TransactionResponse {
     // Validate: Check that debits and credits balance to zero
     validateTransactionBalance(dto.entries);
 
@@ -52,11 +49,16 @@ export class CreateTransactionService {
 
     // Here we would also send the transactions to a topic for other use cases like statement generation, auditing, analytics, etc.
 
-    // Return transaction data for API response
+    // Map domain entities to API response format (exclude internal fields)
     return {
       id: transactionId,
       name: transactionName,
-      entries: savedLines,
+      entries: savedLines.map((line) => ({
+        id: line.id,
+        account_id: line.account_id,
+        amount: line.amount,
+        direction: line.direction,
+      })),
     };
   }
 

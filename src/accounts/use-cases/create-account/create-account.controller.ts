@@ -2,15 +2,11 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CreateAccountService } from './create-account.service';
 import { CreateAccountDto } from '../../dto/create-account.dto';
-import { ComputeBalanceService } from '../../../transactions/use-cases/compute-balance/compute-balance.service';
 
 @ApiTags('accounts')
 @Controller('accounts')
 export class CreateAccountController {
-  constructor(
-    private readonly createAccountService: CreateAccountService,
-    private readonly computeBalanceService: ComputeBalanceService,
-  ) {}
+  constructor(private readonly createAccountService: CreateAccountService) {}
 
   @Post()
   @ApiOperation({
@@ -36,16 +32,6 @@ export class CreateAccountController {
     description: 'Invalid input data',
   })
   create(@Body() dto: CreateAccountDto) {
-    const account = this.createAccountService.execute(dto);
-
-    // Return account with computed balance for consistency
-    const balance = this.computeBalanceService.execute(account);
-
-    return {
-      id: account.id,
-      name: account.name,
-      balance,
-      direction: account.direction,
-    };
+    return this.createAccountService.execute(dto);
   }
 }

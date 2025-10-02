@@ -47,18 +47,6 @@ export class CreateTransactionController {
     description: 'Invalid transaction (debits != credits or account not found)',
   })
   create(@Body() dto: CreateTransactionDto) {
-    const { id, name, entries } = this.createTransactionService.execute(dto);
-
-    // Return in the expected API format
-    return {
-      id,
-      name,
-      entries: entries.map((entry) => ({
-        id: entry.id,
-        account_id: entry.account_id,
-        amount: entry.amount,
-        direction: entry.direction,
-      })),
-    };
+    return this.createTransactionService.execute(dto);
   }
 }
