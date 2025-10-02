@@ -15,12 +15,14 @@ export class CreateTransactionService {
   ) {}
 
   execute(dto: CreateTransactionDto): TransactionResponse {
+    // 1. Validation phase - fail fast
     validateTransactionBalance(dto.entries);
 
     dto.entries.forEach((lineDto) => {
       this.accountRepository.findByIdOrFail(lineDto.account_id);
     });
 
+    // 2. Build phase - prepare transaction lines
     const transactionId = dto.id || uuidv4();
     const transactionName = dto.name;
     const createdAt = new Date();
@@ -39,7 +41,7 @@ export class CreateTransactionService {
         }),
     );
 
-    // Atomic save: All lines succeed or all rollback
+    // 3. Commit phase - atomic save (all succeed or all rollback)
     const savedLines = this.saveTransactionLinesAtomically(transactionLines);
 
     // Here we would also send the transactions to a topic for other use cases like statement generation, auditing, analytics, etc.
@@ -75,6 +77,13 @@ export class CreateTransactionService {
       }
       return savedLines;
     } catch (error) {
+      // CRITICAL: Transaction save failed - rollback all changes
+      // PRODUCTION: This should trigger an alert to operations team
+      this.logger.error(
+        `Transaction creation failed. Rolling back transaction ${lines[0]?.transaction_id}`,
+        error instanceof Error ? error.stack : error,
+      );
+
       // Rollback: Remove any partially saved lines
       savedLines.forEach((saved) =>
         this.transactionRepository.delete(saved.id),
