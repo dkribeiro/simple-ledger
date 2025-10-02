@@ -13,7 +13,7 @@ This system implements a double-entry ledger where every transaction is recorded
 The fastest way to run the application:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/dkribeiro/simple-ledger
 cd simple-ledger
 docker compose up
 ```
@@ -40,7 +40,7 @@ docker compose up --build
 **Installation**
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/dkribeiro/simple-ledger
 cd simple-ledger
 npm install
 ```
