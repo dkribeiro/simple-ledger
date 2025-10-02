@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { TransactionRepository } from '../../data/transaction.repository';
 import { CreateTransactionDto } from '../../dto/create-transaction.dto';
@@ -19,7 +19,6 @@ export class CreateTransactionService {
   execute(dto: CreateTransactionDto): TransactionResponse {
     // 1. Validation phase - fail fast
     validateTransactionBalance(dto.entries);
-
     dto.entries.forEach((lineDto) => {
       this.accountRepository.findByIdOrFail(lineDto.account_id);
     });
@@ -64,7 +63,7 @@ export class CreateTransactionService {
    * Atomically save all transaction lines.
    * Simulates database transaction behavior: all succeed or all rollback.
    *
-   * In a real database with proper transaction support:
+   * DATABASE equivalent:
    *   BEGIN TRANSACTION;
    *   INSERT INTO transactions VALUES (...), (...), (...);
    *   COMMIT; (or ROLLBACK on error)
@@ -73,7 +72,6 @@ export class CreateTransactionService {
     const savedLines: Transaction[] = [];
 
     try {
-      // Attempt to save all lines
       for (const line of lines) {
         savedLines.push(this.transactionRepository.save(line));
       }
@@ -90,6 +88,7 @@ export class CreateTransactionService {
       savedLines.forEach((saved) =>
         this.transactionRepository.delete(saved.id),
       );
+
       throw error;
     }
   }

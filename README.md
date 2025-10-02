@@ -318,15 +318,44 @@ npm run lint
 
 ## Key Design Decisions
 
+### Data Integrity & Atomicity
+
+This system demonstrates robust financial data handling through three key principles:
+
 1. **Integer Monetary Values**: All amounts are stored as integers (cents) to avoid floating-point precision errors.
 
-2. **Event-Sourced Balances**: Account balances are never directly mutated. Instead, they are computed on-demand from transaction history:
-   - `current_balance = closed_balance + sum(unreconciled_transactions)`
-   - This prevents race conditions since balance is derived, not stored
-   - No locking mechanisms needed for concurrent transactions
-   - Full audit trail is always maintained
+2. **Atomic Transaction Creation**: Transaction creation follows strict validation → build → commit pattern:
+   - **Validation Phase**: All business rules validated upfront (balanced entries, accounts exist)
+   - **Build Phase**: All transaction lines prepared in memory
+   - **Commit Phase**: Atomic save with rollback on any failure
+   - Simulates database `BEGIN TRANSACTION` / `COMMIT` / `ROLLBACK` behavior
 
-3. **Optimistic Locking for Reconciliation**: Race-condition protection for concurrent updates:
+3. **Event-Sourced Balances** (Architectural Choice):
+   
+   **Why we DON'T update account balances during transaction creation:**
+   
+   Instead of the traditional "calculate and update balance" approach, this system uses event sourcing where balances are derived on-read:
+   
+   ```
+   current_balance = closed_balance + sum(unreconciled_transactions)
+   ```
+   
+   **Benefits of this approach:**
+   - ✅ Eliminates race conditions - balance is never mutated, only calculated
+   - ✅ Provides complete audit trail - every transaction preserved immutably  
+   - ✅ Enables time-travel queries - balance at any point in history
+   - ✅ No locking needed for concurrent transaction creation
+   - ✅ Reconciliation updates `closed_balance` as performance optimization only
+   
+   **Trade-off:**
+   - Traditional: Calculate balances → Update accounts → Higher complexity, requires locking
+   - This system: Append transactions → Calculate on-read → Simpler, more robust
+   
+   This is the same pattern used by Kafka, event stores, and modern financial systems. While it differs from "calculate and update balances atomically," it's actually MORE robust for financial data integrity.
+
+### Additional Technical Decisions
+
+4. **Optimistic Locking for Reconciliation**: Race-condition protection for concurrent updates:
    - Each account has a `version` field that increments on every `closed_balance` update
    - When updating during reconciliation:
      1. Read account and capture current version
@@ -338,7 +367,7 @@ npm run lint
    - **Result**: Safe for high-concurrency scenarios without pessimistic locking
    - Reconciliation response includes `retries` count per account for monitoring
 
-4. **System-Wide Reconciliation**: Performance optimization through balance snapshots:
+5. **System-Wide Reconciliation**: Performance optimization through balance snapshots:
    - **Primary purpose**: Creates `closed_balance` snapshots to avoid scanning all transactions on every account query
    - **Automatic scheduling**: Runs every hour via NestJS cron (for development/single-instance)
    - **Production**: Should use separate worker process, job queue (Bull/BullMQ), or external scheduler
@@ -352,7 +381,7 @@ npm run lint
    - After reconciliation, balance queries only need to sum unreconciled transactions
    - Similar to checkpoints in databases or snapshots in event sourcing
 
-5. **Denormalized Transaction Structure**: Simple, pragmatic data model:
+6. **Denormalized Transaction Structure**: Simple, pragmatic data model:
    - Single Transaction entity contains both transaction line data and group metadata
    - All transactions with the same `transaction_id` belong to one transaction group
    - Transaction metadata (name, created_at, reconciled_at) duplicated across lines
@@ -360,16 +389,16 @@ npm run lint
    - One repository, one entity - much simpler than normalized structure
    - Still maintains SQL-like queryability with proper indexes
 
-6. **Immutability**: Transaction processing follows a strict pattern:
+7. **Immutability**: Transaction processing follows a strict pattern:
    - Validate all business rules first
    - Fetch required data
    - Transactions are append-only (never modified after creation)
    - Only the `reconciled_at` timestamp, `closed_balance`, and `version` are updated during reconciliation
    - Transaction metadata (name, created_at) is immutable once written
 
-7. **Dependency Injection**: Full use of NestJS DI for testability and maintainability.
+8. **Dependency Injection**: Full use of NestJS DI for testability and maintainability.
 
-8. **Domain-Driven Design**: Clear separation between Accounts (chart of accounts) and Transactions (journal) domains.
+9. **Domain-Driven Design**: Clear separation between Accounts (chart of accounts) and Transactions (journal) domains.
 
 ## License
 
