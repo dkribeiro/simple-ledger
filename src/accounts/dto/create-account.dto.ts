@@ -1,11 +1,4 @@
-import {
-  IsIn,
-  IsInt,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Min,
-} from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { Direction } from '../../transactions/shared/direction.type';
 
@@ -26,16 +19,6 @@ export class CreateAccountDto {
   @IsOptional()
   @IsString()
   name?: string;
-
-  @ApiPropertyOptional({
-    description: 'Initial closed balance in cents (integer). Defaults to 0.',
-    example: 0,
-    minimum: 0,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  closed_balance?: number; // Integer (cents) - initial closed balance
 
   @ApiProperty({
     description:

@@ -10,6 +10,11 @@ export class AccountRepository {
   private accounts: Map<string, Account> = new Map();
 
   save(account: Account): Account {
+    if (this.accounts.has(account.id)) {
+      throw new ConflictException(
+        `Account with ID ${account.id} already exists`,
+      );
+    }
     this.accounts.set(account.id, account);
     return account;
   }

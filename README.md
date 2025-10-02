@@ -118,7 +118,6 @@ Create a new account with a direction (debit or credit).
 {
   "id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd", // Optional
   "name": "Cash Account", // Optional
-  "closed_balance": 0, // Optional, initial balance in cents
   "direction": "debit" // Required: "debit" or "credit"
 }
 ```
