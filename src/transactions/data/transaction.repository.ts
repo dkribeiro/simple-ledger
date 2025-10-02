@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { Transaction } from './transaction.entity';
 
 /**
@@ -14,12 +14,21 @@ export class TransactionRepository {
   private transactions: Map<string, Transaction> = new Map();
 
   save(transaction: Transaction): Transaction {
+    if (this.transactions.has(transaction.id)) {
+      throw new ConflictException(
+        `Transaction entry with ID ${transaction.id} already exists`,
+      );
+    }
     this.transactions.set(transaction.id, transaction);
     return transaction;
   }
 
   delete(id: string): void {
     this.transactions.delete(id);
+  }
+
+  findAll(): Transaction[] {
+    return Array.from(this.transactions.values());
   }
 
   private findBy(predicate: (t: Transaction) => boolean): Transaction[] {

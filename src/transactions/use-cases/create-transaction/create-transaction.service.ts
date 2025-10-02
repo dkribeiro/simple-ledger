@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { TransactionRepository } from '../../data/transaction.repository';
 import { CreateTransactionDto } from '../../dto/create-transaction.dto';
@@ -25,6 +25,15 @@ export class CreateTransactionService {
 
     // 2. Build phase - prepare transaction lines
     const transactionId = dto.id || uuidv4();
+
+    // Check for duplicate transaction ID (idempotency)
+    const existingTransaction =
+      this.transactionRepository.findByTransactionId(transactionId);
+    if (existingTransaction.length > 0) {
+      throw new ConflictException(
+        `Transaction with ID ${transactionId} already exists`,
+      );
+    }
     const transactionName = dto.name;
     const createdAt = new Date();
 

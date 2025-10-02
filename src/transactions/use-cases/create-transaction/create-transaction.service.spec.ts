@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateTransactionService } from './create-transaction.service';
 import { TransactionRepository } from '../../data/transaction.repository';
 import { AccountRepository } from '../../../accounts/data/account.repository';
@@ -572,6 +576,153 @@ describe('CreateTransactionService', () => {
       const result = service.execute(dto);
 
       expect(result.name).toBe(longName);
+    });
+
+    it('should throw ConflictException when entry ID already exists', () => {
+      const account1 = createTestAccount('account-1', 'debit');
+      const account2 = createTestAccount('account-2', 'credit');
+      const duplicateId = 'duplicate-entry-id';
+
+      // First transaction with explicit entry ID
+      const dto1: CreateTransactionDto = {
+        entries: [
+          {
+            id: duplicateId,
+            account_id: account1.id,
+            direction: 'debit',
+            amount: 100,
+          },
+          { account_id: account2.id, direction: 'credit', amount: 100 },
+        ],
+      };
+
+      service.execute(dto1);
+
+      // Second transaction trying to use same entry ID
+      const dto2: CreateTransactionDto = {
+        entries: [
+          {
+            id: duplicateId,
+            account_id: account1.id,
+            direction: 'debit',
+            amount: 200,
+          },
+          { account_id: account2.id, direction: 'credit', amount: 200 },
+        ],
+      };
+
+      expect(() => service.execute(dto2)).toThrow(ConflictException);
+      expect(() => service.execute(dto2)).toThrow(
+        `Transaction entry with ID ${duplicateId} already exists`,
+      );
+    });
+
+    it('should rollback when duplicate entry ID is in second entry', () => {
+      const account1 = createTestAccount('account-1', 'debit');
+      const account2 = createTestAccount('account-2', 'credit');
+      const duplicateId = 'duplicate-entry-id';
+
+      // Create first transaction
+      const dto1: CreateTransactionDto = {
+        entries: [
+          {
+            id: duplicateId,
+            account_id: account1.id,
+            direction: 'debit',
+            amount: 100,
+          },
+          { account_id: account2.id, direction: 'credit', amount: 100 },
+        ],
+      };
+
+      service.execute(dto1);
+
+      // Second transaction where the second entry has duplicate ID
+      const dto2: CreateTransactionDto = {
+        entries: [
+          { account_id: account1.id, direction: 'debit', amount: 200 },
+          {
+            id: duplicateId,
+            account_id: account2.id,
+            direction: 'credit',
+            amount: 200,
+          },
+        ],
+      };
+
+      expect(() => service.execute(dto2)).toThrow(ConflictException);
+
+      // Verify no entries from second transaction were saved (rollback worked)
+      const allTransactions = transactionRepository.findAll();
+      expect(allTransactions).toHaveLength(2); // Only first transaction's 2 entries
+    });
+
+    it('should throw ConflictException when transaction ID already exists (idempotency)', () => {
+      const account1 = createTestAccount('account-1', 'debit');
+      const account2 = createTestAccount('account-2', 'credit');
+      const duplicateTransactionId = 'duplicate-transaction-id';
+
+      // First transaction
+      const dto1: CreateTransactionDto = {
+        id: duplicateTransactionId,
+        name: 'First transaction',
+        entries: [
+          { account_id: account1.id, direction: 'debit', amount: 100 },
+          { account_id: account2.id, direction: 'credit', amount: 100 },
+        ],
+      };
+
+      service.execute(dto1);
+
+      // Second transaction with same transaction ID
+      const dto2: CreateTransactionDto = {
+        id: duplicateTransactionId,
+        name: 'Second transaction',
+        entries: [
+          { account_id: account1.id, direction: 'debit', amount: 200 },
+          { account_id: account2.id, direction: 'credit', amount: 200 },
+        ],
+      };
+
+      expect(() => service.execute(dto2)).toThrow(ConflictException);
+      expect(() => service.execute(dto2)).toThrow(
+        `Transaction with ID ${duplicateTransactionId} already exists`,
+      );
+    });
+
+    it('should prevent duplicate transactions even with different entry amounts', () => {
+      const account1 = createTestAccount('account-1', 'debit');
+      const account2 = createTestAccount('account-2', 'credit');
+      const transactionId = 'same-transaction-id';
+
+      // First transaction
+      const dto1: CreateTransactionDto = {
+        id: transactionId,
+        entries: [
+          { account_id: account1.id, direction: 'debit', amount: 100 },
+          { account_id: account2.id, direction: 'credit', amount: 100 },
+        ],
+      };
+
+      const result1 = service.execute(dto1);
+      expect(result1.entries).toHaveLength(2);
+
+      // Second transaction with same ID but different amounts
+      const dto2: CreateTransactionDto = {
+        id: transactionId,
+        entries: [
+          { account_id: account1.id, direction: 'debit', amount: 500 },
+          { account_id: account2.id, direction: 'credit', amount: 500 },
+        ],
+      };
+
+      expect(() => service.execute(dto2)).toThrow(ConflictException);
+
+      // Verify only first transaction exists
+      const transactions =
+        transactionRepository.findByTransactionId(transactionId);
+      expect(transactions).toHaveLength(2); // 2 entries from first transaction
+      expect(transactions[0].amount).toBe(100); // Original amounts
     });
   });
 });
