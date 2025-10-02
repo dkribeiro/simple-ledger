@@ -1,12 +1,8 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { AccountRepository } from '../../../accounts/data/account.repository';
 import { TransactionRepository } from '../../data/transaction.repository';
 import { ComputeBalanceService } from '../compute-balance/compute-balance.service';
+import { validateTransactionBalance } from '../../shared/validate-transaction-balance';
 
 export interface AccountReconciliationSummary {
   account_id: string;
@@ -76,12 +72,7 @@ export class ReconciliationService {
       const reconciledAt = new Date();
 
       // 1. Verify transaction integrity BEFORE reconciling
-      const integrityCheck = this.verifyTransactionIntegrity();
-      if (!integrityCheck.passed) {
-        throw new BadRequestException(
-          `Transaction integrity check failed: ${integrityCheck.error}`,
-        );
-      }
+      this.verifyTransactionIntegrity();
 
       // 2. Get all unreconciled transaction group IDs
       const unreconciledTransactionIds =
@@ -128,37 +119,18 @@ export class ReconciliationService {
   /**
    * Verify that all transaction groups in the system balance to zero.
    * This is a critical integrity check before reconciliation.
+   * Throws BadRequestException if any transaction group is unbalanced.
    */
-  private verifyTransactionIntegrity(): {
-    passed: boolean;
-    error?: string;
-  } {
+  private verifyTransactionIntegrity(): void {
     const allTransactionIds = this.transactionRepository.getAllTransactionIds();
 
     for (const transactionId of allTransactionIds) {
       const transactions =
         this.transactionRepository.findByTransactionId(transactionId);
 
-      let totalDebits = 0;
-      let totalCredits = 0;
-
-      for (const transaction of transactions) {
-        if (transaction.direction === 'debit') {
-          totalDebits += transaction.amount;
-        } else {
-          totalCredits += transaction.amount;
-        }
-      }
-
-      if (totalDebits !== totalCredits) {
-        return {
-          passed: false,
-          error: `Transaction ${transactionId} is not balanced. Debits: ${totalDebits}, Credits: ${totalCredits}`,
-        };
-      }
+      // Uses shared validation logic - throws if unbalanced
+      validateTransactionBalance(transactions, transactionId);
     }
-
-    return { passed: true };
   }
 
   /**

@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { TransactionRepository } from '../../data/transaction.repository';
 import { CreateTransactionDto } from '../../dto/create-transaction.dto';
 import { Transaction } from '../../data/transaction.entity';
 import { AccountRepository } from '../../../accounts/data/account.repository';
+import { validateTransactionBalance } from '../../shared/validate-transaction-balance';
 
 @Injectable()
 export class CreateTransactionService {
@@ -17,8 +18,8 @@ export class CreateTransactionService {
     name?: string;
     entries: Transaction[];
   } {
-    // 1. Validate: Check that debits and credits balance to zero
-    this.validateBalance(dto);
+    // Validate: Check that debits and credits balance to zero
+    validateTransactionBalance(dto.entries);
 
     // 2. Fetch & Validate: Ensure all accounts exist
     dto.entries.forEach((lineDto) => {
@@ -73,24 +74,5 @@ export class CreateTransactionService {
       name: transactionName,
       entries: savedLines,
     };
-  }
-
-  private validateBalance(dto: CreateTransactionDto): void {
-    let totalDebits = 0;
-    let totalCredits = 0;
-
-    for (const line of dto.entries) {
-      if (line.direction === 'debit') {
-        totalDebits += line.amount;
-      } else {
-        totalCredits += line.amount;
-      }
-    }
-
-    if (totalDebits !== totalCredits) {
-      throw new BadRequestException(
-        `Transaction is not balanced. Debits: ${totalDebits}, Credits: ${totalCredits}`,
-      );
-    }
   }
 }
