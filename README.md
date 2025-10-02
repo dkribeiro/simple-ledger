@@ -407,7 +407,3 @@ This is a reference implementation. For production level ledger, there are some 
 5. **Pagination**: Add to list endpoints
 6. **Rate Limiting**: Protect endpoints
 7. **Observability**: Add logging, metrics, tracing
-
-## License
-
-UNLICENSED

@@ -18,23 +18,16 @@ export class ComputeBalanceService {
    * @returns The computed balance (closed_balance + unreconciled transactions)
    */
   execute(account: Account): number {
-    // Start with the closed/snapshot balance (from reconciled transactions)
-    let balance = account.closed_balance;
-
     // Get all unreconciled transactions for this account (where reconciled_at IS NULL)
     const unreconciledTransactions =
       this.transactionRepository.findUnreconciledByAccountId(account.id);
 
-    // Process unreconciled transactions
-    for (const transaction of unreconciledTransactions) {
-      balance = this.applyTransactionToBalance(
-        balance,
-        account.direction,
-        transaction,
-      );
-    }
-
-    return balance;
+    // Compute balance: closed_balance + sum(unreconciled_transactions)
+    return unreconciledTransactions.reduce(
+      (balance, transaction) =>
+        this.applyTransactionToBalance(balance, account.direction, transaction),
+      account.closed_balance,
+    );
   }
 
   /**
