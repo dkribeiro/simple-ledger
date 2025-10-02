@@ -9,6 +9,8 @@ import { TransactionResponse } from '../../dto/transaction-response.dto';
 
 @Injectable()
 export class CreateTransactionService {
+  private readonly logger = new Logger(CreateTransactionService.name);
+
   constructor(
     private readonly transactionRepository: TransactionRepository,
     private readonly accountRepository: AccountRepository,
