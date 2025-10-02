@@ -9,7 +9,7 @@ import { ReconciliationScheduler } from './use-cases/reconciliation/reconciliati
 import { AccountsModule } from '../accounts/accounts.module';
 
 @Module({
-  imports: [forwardRef(() => AccountsModule)], // Use forwardRef to resolve circular dependency
+  imports: [forwardRef(() => AccountsModule)], // Use forwardRef to resolve circular dependency, in production we would use a separate module for the scheduler and this circular dependency would be resolved by a separate module. But for the sake of simplicity we are using the same module.
   providers: [
     TransactionRepository, // Single repository for denormalized transactions
     CreateTransactionService,
