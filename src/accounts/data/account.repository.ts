@@ -30,15 +30,7 @@ export class AccountRepository {
    * Update the closed balance during reconciliation with optimistic locking.
    * This creates a snapshot of the account balance from reconciled transactions.
    *
-   * Uses version checking to prevent race conditions:
-   * - Checks that the current version matches the expected version
-   * - If versions match: updates balance and increments version
-   * - If versions don't match: throws ConflictException (another update occurred)
-   *
-   * @param id - Account ID
-   * @param newClosedBalance - New closed balance value
-   * @param expectedVersion - Expected current version (for optimistic locking)
-   * @throws ConflictException if version mismatch (concurrent update detected)
+   * Uses version checking to prevent race conditions
    */
   updateClosedBalance(
     id: string,

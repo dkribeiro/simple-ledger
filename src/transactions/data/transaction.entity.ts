@@ -7,12 +7,6 @@ export type TransactionDirection = 'debit' | 'credit';
  *
  * Denormalized structure: Multiple transactions with the same transaction_id
  * form a complete double-entry transaction (which must balance to zero).
- *
- * This design:
- * - Simplifies the data model (one entity instead of two)
- * - Improves query performance (no joins needed)
- * - Minimal duplication (only 3 fields duplicated per transaction group)
- * - Maintains transaction integrity (immutable once created)
  */
 export class Transaction {
   // Transaction line-specific fields

@@ -2,6 +2,10 @@
 
 A double-entry accounting ledger system built with NestJS and TypeScript. This system allows you to create accounts and record financial transactions following double-entry bookkeeping principles.
 
+## ⚠️ Educational Project
+
+This is an **example/reference implementation**.
+
 ## Features
 
 - **Account Management**: Create and retrieve accounts with debit or credit directions
@@ -9,6 +13,8 @@ A double-entry accounting ledger system built with NestJS and TypeScript. This s
 - **Immutable Operations**: Accounts can only be modified through transactions
 - **Precision**: All monetary values are stored as integers (cents) to avoid floating-point errors
 - **In-Memory Storage**: Fast, simple storage for development and testing
+- **Optimistic Locking**: Race-condition protection for concurrent updates
+- **Automatic Reconciliation**: Hourly cron for performance optimization
 
 ## Architecture
 
@@ -145,55 +151,6 @@ Retrieve an account by its ID. The balance is computed in real-time from the clo
 }
 ```
 
-### Reconciliation
-
-**POST** `/accounts/reconcile-all`
-
-Reconciles all unreconciled transactions in the system. This is the **ONLY** way to reconcile transactions.
-
-**Important:** Reconciliation operates on transactions, not individual accounts. When you reconcile, ALL unreconciled transaction groups are marked as reconciled system-wide, ensuring consistency across all accounts.
-
-**Purpose:** This is primarily a **performance optimization** mechanism. By creating balance snapshots (`closed_balance`), account queries only need to sum unreconciled transactions instead of scanning the entire transaction history. Run this frequently based on transaction volume, not just at period-end.
-
-When to reconcile:
-
-- **Regular performance maintenance** - Run hourly, daily, or based on transaction volume
-- **End-of-period closing** - Day, month, quarter, year-end
-- **After bulk imports** - When importing many transactions at once
-- **When queries slow down** - If account balance calculations become slow
-
-This endpoint:
-
-- Verifies all transaction groups balance to zero (integrity check)
-- Marks ALL unreconciled transactions as reconciled
-- Updates `closed_balance` for all affected accounts (performance snapshot)
-- Returns a summary of all reconciliations
-
-**Response:**
-
-```json
-{
-  "reconciled_at": "2025-10-01T12:00:00.000Z",
-  "total_accounts_reconciled": 3,
-  "total_transaction_groups_reconciled": 8,
-  "integrity_check_passed": true,
-  "accounts": [
-    {
-      "account_id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd",
-      "previous_closed_balance": 0,
-      "new_closed_balance": 10000,
-      "transactions_included": 5
-    },
-    {
-      "account_id": "dbf17d00-8701-4c4e-9fc5-6ae33c324309",
-      "previous_closed_balance": 5000,
-      "new_closed_balance": 15000,
-      "transactions_included": 10
-    }
-  ]
-}
-```
-
 ### Create Transaction
 
 **POST** `/transactions`
@@ -239,6 +196,63 @@ Create a transaction with multiple entries. The sum of debits must equal the sum
       "account_id": "dbf17d00-8701-4c4e-9fc5-6ae33c324309",
       "amount": 10000,
       "direction": "credit"
+    }
+  ]
+}
+```
+
+### Reconciliation
+
+**POST** `/accounts/reconcile-all`
+
+Reconciles all unreconciled transactions in the system. This is the **ONLY** way to reconcile transactions.
+
+**Important:** Reconciliation operates on transactions, not individual accounts. When you reconcile, ALL unreconciled transaction groups are marked as reconciled system-wide, ensuring consistency across all accounts.
+
+**Purpose:** This is primarily a **performance optimization** mechanism. By creating balance snapshots (`closed_balance`), account queries only need to sum unreconciled transactions instead of scanning the entire transaction history. Run this frequently based on transaction volume, not just at period-end.
+
+**Automatic Reconciliation:**
+
+The system automatically runs reconciliation **every hour** using NestJS cron scheduler. This ensures optimal balance calculation performance without manual intervention.
+
+You can also manually trigger reconciliation:
+
+- **Manual via API** - Use the endpoint below when needed
+- **Automatic (hourly)** - Runs automatically in the background
+
+**When to manually reconcile:**
+
+- **After bulk imports** - When importing many transactions at once
+- **When queries slow down** - If account balance calculations become slow  
+- **End-of-period closing** - Day, month, quarter, year-end (supplemental)
+
+This endpoint:
+
+- Verifies all transaction groups balance to zero (integrity check)
+- Marks ALL unreconciled transactions as reconciled
+- Updates `closed_balance` for all affected accounts (performance snapshot)
+- Returns a summary of all reconciliations
+
+**Response:**
+
+```json
+{
+  "reconciled_at": "2025-10-01T12:00:00.000Z",
+  "total_accounts_reconciled": 3,
+  "total_transaction_groups_reconciled": 8,
+  "integrity_check_passed": true,
+  "accounts": [
+    {
+      "account_id": "71cde2aa-b9bc-496a-a6f1-34964d05e6fd",
+      "previous_closed_balance": 0,
+      "new_closed_balance": 10000,
+      "transactions_included": 5
+    },
+    {
+      "account_id": "dbf17d00-8701-4c4e-9fc5-6ae33c324309",
+      "previous_closed_balance": 5000,
+      "new_closed_balance": 15000,
+      "transactions_included": 10
     }
   ]
 }
@@ -326,6 +340,8 @@ npm run lint
 
 4. **System-Wide Reconciliation**: Performance optimization through balance snapshots:
    - **Primary purpose**: Creates `closed_balance` snapshots to avoid scanning all transactions on every account query
+   - **Automatic scheduling**: Runs every hour via NestJS cron (for development/single-instance)
+   - **Production**: Should use separate worker process, job queue (Bull/BullMQ), or external scheduler
    - **Only one endpoint**: `POST /accounts/reconcile-all` reconciles ALL unreconciled transactions
    - No single-account reconciliation (would violate double-entry consistency)
    - Transactions have a `reconciled_at: Date | null` field
@@ -333,7 +349,6 @@ npm run lint
    - Verifies ALL transaction groups balance to zero before reconciling
    - Marks ALL unreconciled transactions as reconciled atomically
    - Updates `closed_balance` for all affected accounts (performance snapshot)
-   - **Run frequently** based on transaction volume (hourly/daily), not just at period-end
    - After reconciliation, balance queries only need to sum unreconciled transactions
    - Similar to checkpoints in databases or snapshots in event sourcing
 

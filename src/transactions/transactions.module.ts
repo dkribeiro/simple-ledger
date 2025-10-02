@@ -5,6 +5,7 @@ import { CreateTransactionController } from './use-cases/create-transaction/crea
 import { ComputeBalanceService } from './use-cases/compute-balance/compute-balance.service';
 import { ReconciliationService } from './use-cases/reconciliation/reconciliation.service';
 import { ReconciliationController } from './use-cases/reconciliation/reconciliation.controller';
+import { ReconciliationScheduler } from './use-cases/reconciliation/reconciliation.scheduler';
 import { AccountsModule } from '../accounts/accounts.module';
 
 @Module({
@@ -14,6 +15,7 @@ import { AccountsModule } from '../accounts/accounts.module';
     CreateTransactionService,
     ComputeBalanceService,
     ReconciliationService, // System-wide reconciliation of all transactions
+    ReconciliationScheduler, // Automatic hourly reconciliation (cron)
   ],
   controllers: [
     CreateTransactionController,

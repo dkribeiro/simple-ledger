@@ -65,6 +65,8 @@ export class CreateTransactionService {
       throw error; // Re-throw to signal transaction failed
     }
 
+    // Here we would also sent the transactions for some topic for other use cases like statement generation, auditing, analytics, etc.
+
     // Return transaction data for API response
     return {
       id: transactionId,
