@@ -11,4 +11,3 @@ export interface AccountResponse {
   balance: number; // Computed from closed_balance + unreconciled transactions
   direction: Direction;
 }
-

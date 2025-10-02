@@ -21,4 +21,3 @@ export interface TransactionResponse {
   name?: string;
   entries: TransactionLineResponse[];
 }
-

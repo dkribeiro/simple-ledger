@@ -22,9 +22,7 @@ export class TransactionRepository {
     this.transactions.delete(id);
   }
 
-  private findBy(
-    predicate: (t: Transaction) => boolean,
-  ): Transaction[] {
+  private findBy(predicate: (t: Transaction) => boolean): Transaction[] {
     return Array.from(this.transactions.values()).filter(predicate);
   }
 
