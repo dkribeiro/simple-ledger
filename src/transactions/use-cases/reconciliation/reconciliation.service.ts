@@ -69,7 +69,7 @@ export class ReconciliationService {
       );
 
       // 3. Compute new balances BEFORE marking as reconciled (critical!)
-      const newBalances = await this.computeNewBalances();
+      const newBalances = this.computeNewBalances();
 
       // 4. Mark ALL unreconciled transactions as reconciled
       unreconciledTransactionIds.forEach((transactionId) => {

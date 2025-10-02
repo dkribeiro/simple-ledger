@@ -289,7 +289,9 @@ describe('Ledger System (e2e)', () => {
         .expect(201);
 
       expect(reconciliationRes.body.total_accounts_reconciled).toBe(2);
-      expect(reconciliationRes.body.total_transaction_groups_reconciled).toBe(2);
+      expect(reconciliationRes.body.total_transaction_groups_reconciled).toBe(
+        2,
+      );
       expect(reconciliationRes.body.integrity_check_passed).toBe(true);
 
       // 5. Verify balances after reconciliation (should be the same)
@@ -616,4 +618,3 @@ describe('Ledger System (e2e)', () => {
     });
   });
 });
-

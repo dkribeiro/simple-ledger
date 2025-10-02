@@ -418,7 +418,7 @@ describe('CreateTransactionService', () => {
 
       try {
         service.execute(dto);
-      } catch (error) {
+      } catch (_error) {
         // Expected error
       }
 
@@ -445,7 +445,7 @@ describe('CreateTransactionService', () => {
 
       try {
         service.execute(dto);
-      } catch (error) {
+      } catch (_error) {
         // Expected error
       }
 
@@ -514,7 +514,7 @@ describe('CreateTransactionService', () => {
       let callCount = 0;
       const originalSave = transactionRepository.save.bind(
         transactionRepository,
-      );
+      ) as typeof transactionRepository.save;
       jest.spyOn(transactionRepository, 'save').mockImplementation((tx) => {
         callCount++;
         if (callCount === 2) {

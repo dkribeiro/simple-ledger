@@ -15,7 +15,7 @@ describe('ReconciliationService', () => {
   let service: ReconciliationService;
   let accountRepository: AccountRepository;
   let transactionRepository: TransactionRepository;
-  let computeBalanceService: ComputeBalanceService;
+  let _computeBalanceService: ComputeBalanceService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -32,7 +32,7 @@ describe('ReconciliationService', () => {
     transactionRepository = module.get<TransactionRepository>(
       TransactionRepository,
     );
-    computeBalanceService = module.get<ComputeBalanceService>(
+    _computeBalanceService = module.get<ComputeBalanceService>(
       ComputeBalanceService,
     );
   });
@@ -79,8 +79,8 @@ describe('ReconciliationService', () => {
 
   describe('execute - success scenarios', () => {
     it('should reconcile single balanced transaction', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 1000 },
@@ -96,8 +96,8 @@ describe('ReconciliationService', () => {
     });
 
     it('should reconcile multiple balanced transactions', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 500 },
@@ -116,10 +116,10 @@ describe('ReconciliationService', () => {
     });
 
     it('should mark all transactions as reconciled', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
 
-      const transactions = createBalancedTransaction('tx-1', [
+      const _transactions = createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 1000 },
         { accountId: 'account-2', direction: 'credit', amount: 1000 },
       ]);
@@ -132,15 +132,15 @@ describe('ReconciliationService', () => {
     });
 
     it('should update account closed_balance correctly', async () => {
-      const account1 = createAccount('account-1', 'debit', 1000);
-      const account2 = createAccount('account-2', 'credit', 2000);
+      const _account1 = createAccount('account-1', 'debit', 1000);
+      const _account2 = createAccount('account-2', 'credit', 2000);
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 500 },
         { accountId: 'account-2', direction: 'credit', amount: 500 },
       ]);
 
-      const result = await service.execute();
+      const _result = await service.execute();
 
       const updatedAccount1 = accountRepository.findById('account-1');
       const updatedAccount2 = accountRepository.findById('account-2');
@@ -171,7 +171,7 @@ describe('ReconciliationService', () => {
     });
 
     it('should return account summaries with correct data', async () => {
-      const account1 = createAccount('account-1', 'debit', 1000);
+      const _account1 = createAccount('account-1', 'debit', 1000);
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 500 },
@@ -189,9 +189,9 @@ describe('ReconciliationService', () => {
     });
 
     it('should handle transaction with multiple entries (3+)', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
-      const account3 = createAccount('account-3', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
+      const _account3 = createAccount('account-3', 'credit');
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 1000 },
@@ -206,8 +206,8 @@ describe('ReconciliationService', () => {
     });
 
     it('should handle reconciliation of many transactions', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
 
       // Create 50 balanced transactions
       for (let i = 0; i < 50; i++) {
@@ -223,8 +223,8 @@ describe('ReconciliationService', () => {
     });
 
     it('should set reconciled_at timestamp', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 1000 },
@@ -244,8 +244,8 @@ describe('ReconciliationService', () => {
     });
 
     it('should handle accounts with existing closed_balance', async () => {
-      const account1 = createAccount('account-1', 'debit', 5000);
-      const account2 = createAccount('account-2', 'credit', 3000);
+      const _account1 = createAccount('account-1', 'debit', 5000);
+      const _account2 = createAccount('account-2', 'credit', 3000);
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 1000 },
@@ -276,8 +276,8 @@ describe('ReconciliationService', () => {
     });
 
     it('should not affect already reconciled transactions', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
 
       // Create and reconcile first transaction
       createBalancedTransaction('tx-1', [
@@ -301,8 +301,8 @@ describe('ReconciliationService', () => {
 
   describe('execute - edge cases', () => {
     it('should throw ConflictException when reconciliation already in progress', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 1000 },
@@ -323,8 +323,8 @@ describe('ReconciliationService', () => {
     });
 
     it('should throw BadRequestException when transaction is unbalanced', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
 
       // Create unbalanced transaction by manually saving
       const tx1 = new Transaction({
@@ -353,7 +353,7 @@ describe('ReconciliationService', () => {
     });
 
     it('should release lock even if reconciliation fails', async () => {
-      const account1 = createAccount('account-1', 'debit');
+      const _account1 = createAccount('account-1', 'debit');
 
       // Create unbalanced transaction to cause failure
       const tx = new Transaction({
@@ -376,7 +376,7 @@ describe('ReconciliationService', () => {
     });
 
     it('should handle account not found during reconciliation', async () => {
-      const account1 = createAccount('account-1', 'debit');
+      const _account1 = createAccount('account-1', 'debit');
 
       // Create balanced transaction but one account doesn't exist
       createBalancedTransaction('tx-orphan', [
@@ -393,8 +393,8 @@ describe('ReconciliationService', () => {
     });
 
     it('should handle account with negative balance', async () => {
-      const account1 = createAccount('account-1', 'debit', -500);
-      const account2 = createAccount('account-2', 'credit', 1000);
+      const _account1 = createAccount('account-1', 'debit', -500);
+      const _account2 = createAccount('account-2', 'credit', 1000);
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 300 },
@@ -411,8 +411,8 @@ describe('ReconciliationService', () => {
     });
 
     it('should handle very large transaction amounts', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
 
       const largeAmount = Number.MAX_SAFE_INTEGER - 1000;
       createBalancedTransaction('tx-large', [
@@ -429,8 +429,8 @@ describe('ReconciliationService', () => {
     });
 
     it('should return total_retries as 0 when no conflicts occur', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 1000 },
@@ -443,8 +443,8 @@ describe('ReconciliationService', () => {
     });
 
     it('should handle concurrent account updates with retry (mocked)', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 1000 },
@@ -453,8 +453,9 @@ describe('ReconciliationService', () => {
 
       // Mock updateClosedBalance to fail once then succeed
       let callCount = 0;
-      const originalUpdate =
-        accountRepository.updateClosedBalance.bind(accountRepository);
+      const originalUpdate = accountRepository.updateClosedBalance.bind(
+        accountRepository,
+      ) as typeof accountRepository.updateClosedBalance;
       jest
         .spyOn(accountRepository, 'updateClosedBalance')
         .mockImplementation((id, balance, version) => {
@@ -474,8 +475,8 @@ describe('ReconciliationService', () => {
     });
 
     it('should handle transaction with same account multiple times', async () => {
-      const account1 = createAccount('account-1', 'debit');
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit');
+      const _account2 = createAccount('account-2', 'credit');
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'debit', amount: 500 },
@@ -502,8 +503,8 @@ describe('ReconciliationService', () => {
     });
 
     it('should handle transaction where balance goes to zero', async () => {
-      const account1 = createAccount('account-1', 'debit', 1000);
-      const account2 = createAccount('account-2', 'credit');
+      const _account1 = createAccount('account-1', 'debit', 1000);
+      const _account2 = createAccount('account-2', 'credit');
 
       createBalancedTransaction('tx-1', [
         { accountId: 'account-1', direction: 'credit', amount: 1000 },
