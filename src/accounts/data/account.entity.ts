@@ -1,11 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
-
-export type AccountDirection = 'debit' | 'credit';
+import { Direction } from '../../transactions/shared/direction.type';
 
 export class Account {
   id: string;
   name?: string;
-  direction: AccountDirection;
+  direction: Direction;
 
   // Event-sourced balance: Instead of storing a mutable balance,
   // we maintain a "closed" snapshot and calculate the current balance

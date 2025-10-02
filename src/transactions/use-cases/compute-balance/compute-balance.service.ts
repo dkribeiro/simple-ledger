@@ -44,7 +44,7 @@ export class ComputeBalanceService {
    */
   private applyTransactionToBalance(
     currentBalance: number,
-    accountDirection: 'debit' | 'credit',
+    accountDirection: Transaction['direction'],
     transaction: Transaction,
   ): number {
     if (accountDirection === transaction.direction) {

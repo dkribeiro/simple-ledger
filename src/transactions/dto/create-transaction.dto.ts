@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { Direction } from '../shared/direction.type';
 
 export class CreateTransactionLineDto {
   @ApiPropertyOptional({
@@ -43,7 +44,7 @@ export class CreateTransactionLineDto {
     example: 'debit',
   })
   @IsIn(['debit', 'credit'])
-  direction!: 'debit' | 'credit';
+  direction!: Direction;
 }
 
 export class CreateTransactionDto {

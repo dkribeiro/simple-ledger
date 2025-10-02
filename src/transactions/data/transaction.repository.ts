@@ -30,6 +30,11 @@ export class TransactionRepository {
     return transaction;
   }
 
+  /**
+   * Delete a transaction by ID.
+   * Used for rollback simulation in atomic transaction operations.
+   * In a real database, rollback would be handled by the DB engine.
+   */
   delete(id: string): void {
     this.transactions.delete(id);
   }
@@ -39,9 +44,7 @@ export class TransactionRepository {
   }
 
   findByTransactionId(transactionId: string): Transaction[] {
-    return this.findAll().filter(
-      (t) => t.transaction_id === transactionId,
-    );
+    return this.findAll().filter((t) => t.transaction_id === transactionId);
   }
 
   findByAccountId(accountId: string): Transaction[] {

@@ -31,42 +31,26 @@ export class CreateTransactionService {
     const transactionName = dto.name;
     const createdAt = new Date();
 
-    // 4. Build all transaction lines first (prepare phase - no side effects yet)
-    const transactionLines = dto.entries.map((lineDto) => {
-      return new Transaction({
-        id: lineDto.id || uuidv4(),
-        transaction_id: transactionId, // Same for all lines in this transaction
-        transaction_name: transactionName,
-        created_at: createdAt, // Same for all lines
-        reconciled_at: null, // New transactions are unreconciled
-        account_id: lineDto.account_id,
-        amount: lineDto.amount,
-        direction: lineDto.direction,
-      });
-    });
+    // 4. Build all transaction lines first (prepare phase)
+    const transactionLines = dto.entries.map(
+      (lineDto) =>
+        new Transaction({
+          id: lineDto.id || uuidv4(),
+          transaction_id: transactionId,
+          transaction_name: transactionName,
+          created_at: createdAt,
+          reconciled_at: null,
+          account_id: lineDto.account_id,
+          amount: lineDto.amount,
+          direction: lineDto.direction,
+        }),
+    );
 
-    // 5. ATOMIC OPERATION: Save all lines at once
-    //    Simulates database BEGIN TRANSACTION / COMMIT
-    //    DATABASE: BEGIN TRANSACTION
-    //              INSERT INTO transactions VALUES (...), (...), (...)
-    //              COMMIT (or ROLLBACK on error)
-    const savedLines: Transaction[] = [];
-    try {
-      // Save each line (in real DB, would be a single multi-row INSERT)
-      for (const transaction of transactionLines) {
-        savedLines.push(this.transactionRepository.save(transaction));
-      }
-      // All saves succeeded → Transaction committed
-    } catch (error) {
-      // ROLLBACK: Remove any partially saved lines
-      // Simulates database automatic rollback on error
-      savedLines.forEach((saved) => {
-        this.transactionRepository.delete(saved.id);
-      });
-      throw error; // Re-throw to signal transaction failed
-    }
+    // 5. Atomic save: All lines succeed or all rollback
+    //    DATABASE equivalent: BEGIN TRANSACTION; INSERT ...; COMMIT;
+    const savedLines = this.saveTransactionLinesAtomically(transactionLines);
 
-    // Here we would also sent the transactions for some topic for other use cases like statement generation, auditing, analytics, etc.
+    // Here we would also send the transactions to a topic for other use cases like statement generation, auditing, analytics, etc.
 
     // Return transaction data for API response
     return {
@@ -74,5 +58,32 @@ export class CreateTransactionService {
       name: transactionName,
       entries: savedLines,
     };
+  }
+
+  /**
+   * Atomically save all transaction lines.
+   * Simulates database transaction behavior: all succeed or all rollback.
+   *
+   * In a real database with proper transaction support:
+   *   BEGIN TRANSACTION;
+   *   INSERT INTO transactions VALUES (...), (...), (...);
+   *   COMMIT; (or ROLLBACK on error)
+   */
+  private saveTransactionLinesAtomically(lines: Transaction[]): Transaction[] {
+    const savedLines: Transaction[] = [];
+
+    try {
+      // Attempt to save all lines
+      for (const line of lines) {
+        savedLines.push(this.transactionRepository.save(line));
+      }
+      return savedLines;
+    } catch (error) {
+      // Rollback: Remove any partially saved lines
+      savedLines.forEach((saved) =>
+        this.transactionRepository.delete(saved.id),
+      );
+      throw error;
+    }
   }
 }

@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { Direction } from './direction.type';
 
 /**
  * Validates that a transaction balances according to double-entry bookkeeping:
@@ -8,7 +9,7 @@ import { BadRequestException } from '@nestjs/common';
  * used by both transaction creation and reconciliation processes.
  */
 export function validateTransactionBalance(
-  entries: Array<{ direction: 'debit' | 'credit'; amount: number }>,
+  entries: Array<{ direction: Direction; amount: number }>,
   transactionId?: string,
 ): { debits: number; credits: number } {
   const totals = entries.reduce(
@@ -35,4 +36,3 @@ export function validateTransactionBalance(
 
   return totals;
 }
-

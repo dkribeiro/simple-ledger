@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-
-export type TransactionDirection = 'debit' | 'credit';
+import { Direction } from '../shared/direction.type';
 
 /**
  * Transaction represents a single line in the ledger (a journal entry).
@@ -13,7 +12,7 @@ export class Transaction {
   id: string;
   account_id: string;
   amount: number; // Stored as integer (cents)
-  direction: TransactionDirection;
+  direction: Direction;
 
   // Transaction group metadata (denormalized for simplicity)
   transaction_id: string; // Grouping identifier - all lines with same ID form one transaction
