@@ -8,11 +8,36 @@ This system implements a double-entry ledger where every transaction is recorded
 
 ## Setup & Running
 
-### Prerequisites
-- Node.js v18+
+### Option 1: Docker
+
+The fastest way to run the application:
+
+```bash
+git clone <repository-url>
+cd simple-ledger
+docker compose up
+```
+
+The server will be available at http://localhost:3000  
+The swagger will be available at http://localhost:3000/docs
+
+To stop the container:
+```bash
+docker compose down
+```
+
+To rebuild after code changes:
+```bash
+docker compose up --build
+```
+
+### Option 2: Local Installation
+
+**Prerequisites**
+- Node.js v20+
 - npm v9+
 
-### Installation
+**Installation**
 
 ```bash
 git clone <repository-url>
@@ -20,15 +45,16 @@ cd simple-ledger
 npm install
 ```
 
-### Development
+**Development**
 
 ```bash
 npm run start:dev
 ```
 
 Server runs on http://localhost:3000
+And the swagger is at http://localhost:3000/docs
 
-### Production
+**Production**
 
 ```bash
 npm run build
@@ -370,7 +396,7 @@ E2E: 14 tests
 
 ## Production Considerations
 
-This is a reference implementation. For production use:
+This is a reference implementation. For production level ledger, there are some considerations to be addressed:
 
 1. **Database**: Replace in-memory storage with PostgreSQL/MySQL
    - Add indexes on `transaction_id`, `account_id`, `reconciled_at`
@@ -379,10 +405,8 @@ This is a reference implementation. For production use:
 3. **Job Queue**: Use Bull/BullMQ for background jobs
 4. **Distributed Locking**: Add Redis locks for multi-instance deployments
 5. **Pagination**: Add to list endpoints
-6. **Authentication**: Add JWT/OAuth
-7. **Rate Limiting**: Protect endpoints
-8. **Observability**: Add logging, metrics, tracing
-9. **Idempotency**: Add idempotency keys for POST endpoints
+6. **Rate Limiting**: Protect endpoints
+7. **Observability**: Add logging, metrics, tracing
 
 ## License
 
