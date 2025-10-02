@@ -1,4 +1,5 @@
 import {
+  ArrayMinSize,
   IsArray,
   IsIn,
   IsInt,
@@ -67,8 +68,9 @@ export class CreateTransactionDto {
 
   @ApiProperty({
     description:
-      'Array of transaction lines. Must balance (sum of debits = sum of credits).',
+      'Array of transaction lines. Must have at least 2 entries and balance (sum of debits = sum of credits).',
     type: [CreateTransactionLineDto],
+    minItems: 2,
     example: [
       {
         direction: 'debit',
@@ -83,6 +85,7 @@ export class CreateTransactionDto {
     ],
   })
   @IsArray()
+  @ArrayMinSize(2)
   @ValidateNested({ each: true })
   @Type(() => CreateTransactionLineDto)
   entries!: CreateTransactionLineDto[];
