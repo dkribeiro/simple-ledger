@@ -55,6 +55,10 @@ export default tseslint.config(
     files: ['**/*.spec.ts', '**/*.e2e-spec.ts'],
     rules: {
       '@typescript-eslint/unbound-method': 'off', // Jest mocks cause false positives
+      '@typescript-eslint/no-unsafe-argument': 'off', // Common in test mocks and API responses
+      '@typescript-eslint/no-unsafe-assignment': 'off', // Common in test mocks and API responses
+      '@typescript-eslint/no-unsafe-member-access': 'off', // Common in test mocks and API responses
+      '@typescript-eslint/no-unsafe-call': 'off', // Common in test mocks and API responses
     },
   },
 );
