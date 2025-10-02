@@ -1,6 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { Transaction } from './transaction.entity';
 
+/**
+ * TransactionRepository - In-Memory Implementation
+ *
+ * This is a simple in-memory repository for development/testing.
+ * In a production database implementation, you would need:
+ *
+ * 1. **ORM/Query Builder**: Use TypeORM, Prisma, or similar
+ * 2. **Database Indexes**: Critical for performance
+ *    - PRIMARY KEY on `id`
+ *    - INDEX on `transaction_id` (for grouping transaction lines)
+ *    - INDEX on `account_id` (for account queries)
+ *    - INDEX on `reconciled_at` (for filtering unreconciled)
+ *    - COMPOSITE INDEX on (`account_id`, `reconciled_at`) for balance queries
+ *
+ * 3. **Connection Pooling**: Manage database connections efficiently
+ * 4. **Query Optimization**: Use WHERE clauses instead of in-memory filtering
+ * 5. **Pagination**: Never return all records, use LIMIT/OFFSET or cursor-based
+ * 6. **Transactions**: Wrap operations in database transactions for atomicity
+ * 7. **Prepared Statements**: Prevent SQL injection, improve performance
+ */
 @Injectable()
 export class TransactionRepository {
   private transactions: Map<string, Transaction> = new Map();
@@ -10,83 +30,55 @@ export class TransactionRepository {
     return transaction;
   }
 
-  findById(id: string): Transaction | undefined {
-    return this.transactions.get(id);
+  delete(id: string): void {
+    this.transactions.delete(id);
   }
 
   findAll(): Transaction[] {
     return Array.from(this.transactions.values());
   }
 
-  /**
-   * Find all transaction lines for a specific transaction group
-   */
   findByTransactionId(transactionId: string): Transaction[] {
     return this.findAll().filter(
-      (transaction) => transaction.transaction_id === transactionId,
+      (t) => t.transaction_id === transactionId,
     );
   }
 
-  /**
-   * Find all transactions for a specific account
-   */
   findByAccountId(accountId: string): Transaction[] {
-    return this.findAll().filter(
-      (transaction) => transaction.account_id === accountId,
-    );
+    return this.findAll().filter((t) => t.account_id === accountId);
   }
 
   /**
-   * Find unreconciled transactions for a specific account
+   * CRITICAL: This is called on EVERY account GET request for balance calculation.
+   * Returns only unreconciled transactions for the given account.
+   *
+   * DATABASE: SELECT * FROM transactions
+   *           WHERE account_id = $1 AND reconciled_at IS NULL
+   *           (requires composite index on account_id, reconciled_at)
    */
   findUnreconciledByAccountId(accountId: string): Transaction[] {
     return this.findAll().filter(
-      (transaction) =>
-        transaction.account_id === accountId &&
-        transaction.reconciled_at === null,
+      (t) => t.account_id === accountId && t.reconciled_at === null,
     );
   }
 
-  /**
-   * Find all unreconciled transaction lines for a specific transaction group
-   */
-  findUnreconciledByTransactionId(transactionId: string): Transaction[] {
-    return this.findAll().filter(
-      (transaction) =>
-        transaction.transaction_id === transactionId &&
-        transaction.reconciled_at === null,
-    );
-  }
-
-  /**
-   * Mark all transaction lines in a group as reconciled
-   */
   reconcileTransactionGroup(transactionId: string, reconciledAt: Date): void {
-    const transactions = this.findByTransactionId(transactionId);
-    transactions.forEach((transaction) => {
-      transaction.reconciled_at = reconciledAt;
+    this.findByTransactionId(transactionId).forEach((t) => {
+      t.reconciled_at = reconciledAt;
     });
   }
 
-  /**
-   * Get all unique transaction group IDs
-   */
   getAllTransactionIds(): string[] {
-    const transactionIds = new Set(
-      this.findAll().map((transaction) => transaction.transaction_id),
-    );
-    return Array.from(transactionIds);
+    return [...new Set(this.findAll().map((t) => t.transaction_id))];
   }
 
-  /**
-   * Get all unique unreconciled transaction group IDs
-   */
   getUnreconciledTransactionIds(): string[] {
-    const transactionIds = new Set(
-      this.findAll()
-        .filter((transaction) => transaction.reconciled_at === null)
-        .map((transaction) => transaction.transaction_id),
-    );
-    return Array.from(transactionIds);
+    return [
+      ...new Set(
+        this.findAll()
+          .filter((t) => t.reconciled_at === null)
+          .map((t) => t.transaction_id),
+      ),
+    ];
   }
 }

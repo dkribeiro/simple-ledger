@@ -5,9 +5,7 @@ import { Account } from '../../../accounts/data/account.entity';
 
 @Injectable()
 export class ComputeBalanceService {
-  constructor(
-    private readonly transactionRepository: TransactionRepository,
-  ) {}
+  constructor(private readonly transactionRepository: TransactionRepository) {}
 
   /**
    * Computes the current balance of an account using event sourcing:

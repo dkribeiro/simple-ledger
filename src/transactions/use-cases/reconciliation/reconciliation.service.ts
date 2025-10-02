@@ -53,7 +53,6 @@ export class ReconciliationService {
    * Use cases:
    * - Regular performance maintenance (e.g., hourly, daily)
    * - End-of-period closing (day, month, year)
-   * - After bulk transaction imports
    * - When balance queries become slow
    *
    * Process:

@@ -13,7 +13,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTransactionLineDto {
   @ApiPropertyOptional({
-    description: 'Unique identifier for the transaction line (UUID v4). If not provided, one will be generated.',
+    description:
+      'Unique identifier for the transaction line (UUID v4). If not provided, one will be generated.',
     example: 'a5c1b7f0-e52e-4ab6-8f31-c380c2223efa',
   })
   @IsOptional()
@@ -47,7 +48,8 @@ export class CreateTransactionLineDto {
 
 export class CreateTransactionDto {
   @ApiPropertyOptional({
-    description: 'Unique identifier for the transaction (UUID v4). If not provided, one will be generated.',
+    description:
+      'Unique identifier for the transaction (UUID v4). If not provided, one will be generated.',
     example: '3256dc3c-7b18-4a21-95c6-146747cf2971',
   })
   @IsOptional()
@@ -63,7 +65,8 @@ export class CreateTransactionDto {
   name?: string;
 
   @ApiProperty({
-    description: 'Array of transaction lines. Must balance (sum of debits = sum of credits).',
+    description:
+      'Array of transaction lines. Must balance (sum of debits = sum of credits).',
     type: [CreateTransactionLineDto],
     example: [
       {

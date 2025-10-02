@@ -10,7 +10,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAccountDto {
   @ApiPropertyOptional({
-    description: 'Unique identifier for the account (UUID v4). If not provided, one will be generated.',
+    description:
+      'Unique identifier for the account (UUID v4). If not provided, one will be generated.',
     example: '71cde2aa-b9bc-496a-a6f1-34964d05e6fd',
   })
   @IsOptional()
@@ -36,7 +37,8 @@ export class CreateAccountDto {
   closed_balance?: number; // Integer (cents) - initial closed balance
 
   @ApiProperty({
-    description: 'Account direction/type. Debit accounts increase with debits, credit accounts increase with credits.',
+    description:
+      'Account direction/type. Debit accounts increase with debits, credit accounts increase with credits.',
     enum: ['debit', 'credit'],
     example: 'debit',
   })

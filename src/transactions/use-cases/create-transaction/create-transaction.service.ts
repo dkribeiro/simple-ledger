@@ -25,15 +25,15 @@ export class CreateTransactionService {
       this.accountRepository.findByIdOrFail(lineDto.account_id);
     });
 
-    // 3. Generate transaction ID (or use provided one)
+    // 3. Generate transaction ID and metadata (or use provided one)
     const transactionId = dto.id || uuidv4();
     const transactionName = dto.name;
     const createdAt = new Date();
 
-    // 4. Create and save transaction lines with denormalized metadata
+    // 4. Build all transaction lines first (prepare phase - no side effects yet)
     const transactionLines = dto.entries.map((lineDto) => {
-      const transaction = new Transaction({
-        id: lineDto.id,
+      return new Transaction({
+        id: lineDto.id || uuidv4(),
         transaction_id: transactionId, // Same for all lines in this transaction
         transaction_name: transactionName,
         created_at: createdAt, // Same for all lines
@@ -42,14 +42,34 @@ export class CreateTransactionService {
         amount: lineDto.amount,
         direction: lineDto.direction,
       });
-      return this.transactionRepository.save(transaction);
     });
+
+    // 5. ATOMIC OPERATION: Save all lines at once
+    //    Simulates database BEGIN TRANSACTION / COMMIT
+    //    DATABASE: BEGIN TRANSACTION
+    //              INSERT INTO transactions VALUES (...), (...), (...)
+    //              COMMIT (or ROLLBACK on error)
+    const savedLines: Transaction[] = [];
+    try {
+      // Save each line (in real DB, would be a single multi-row INSERT)
+      for (const transaction of transactionLines) {
+        savedLines.push(this.transactionRepository.save(transaction));
+      }
+      // All saves succeeded → Transaction committed
+    } catch (error) {
+      // ROLLBACK: Remove any partially saved lines
+      // Simulates database automatic rollback on error
+      savedLines.forEach((saved) => {
+        this.transactionRepository.delete(saved.id);
+      });
+      throw error; // Re-throw to signal transaction failed
+    }
 
     // Return transaction data for API response
     return {
       id: transactionId,
       name: transactionName,
-      entries: transactionLines,
+      entries: savedLines,
     };
   }
 
