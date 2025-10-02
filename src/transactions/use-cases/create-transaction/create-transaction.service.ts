@@ -15,20 +15,16 @@ export class CreateTransactionService {
   ) {}
 
   execute(dto: CreateTransactionDto): TransactionResponse {
-    // Validate: Check that debits and credits balance to zero
     validateTransactionBalance(dto.entries);
 
-    // 2. Fetch & Validate: Ensure all accounts exist
     dto.entries.forEach((lineDto) => {
       this.accountRepository.findByIdOrFail(lineDto.account_id);
     });
 
-    // 3. Generate transaction ID and metadata (or use provided one)
     const transactionId = dto.id || uuidv4();
     const transactionName = dto.name;
     const createdAt = new Date();
 
-    // 4. Build all transaction lines first (prepare phase)
     const transactionLines = dto.entries.map(
       (lineDto) =>
         new Transaction({
@@ -43,13 +39,11 @@ export class CreateTransactionService {
         }),
     );
 
-    // 5. Atomic save: All lines succeed or all rollback
-    //    DATABASE equivalent: BEGIN TRANSACTION; INSERT ...; COMMIT;
+    // Atomic save: All lines succeed or all rollback
     const savedLines = this.saveTransactionLinesAtomically(transactionLines);
 
     // Here we would also send the transactions to a topic for other use cases like statement generation, auditing, analytics, etc.
 
-    // Map domain entities to API response format (exclude internal fields)
     return {
       id: transactionId,
       name: transactionName,

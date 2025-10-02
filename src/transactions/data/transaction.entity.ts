@@ -2,23 +2,19 @@ import { v4 as uuidv4 } from 'uuid';
 import { Direction } from '../shared/direction.type';
 
 /**
- * Transaction represents a single line in the ledger (a journal entry).
- *
- * Denormalized structure: Multiple transactions with the same transaction_id
- * form a complete double-entry transaction (which must balance to zero).
+ * Transaction line in the ledger.
+ * Denormalized: Multiple lines with same transaction_id form one double-entry transaction.
  */
 export class Transaction {
-  // Transaction line-specific fields
   id: string;
   account_id: string;
-  amount: number; // Stored as integer (cents)
+  amount: number; // Integer (cents)
   direction: Direction;
 
-  // Transaction group metadata (denormalized for simplicity)
-  transaction_id: string; // Grouping identifier - all lines with same ID form one transaction
-  transaction_name?: string; // Optional label for the transaction group
-  created_at: Date; // When the transaction was created
-  reconciled_at: Date | null; // When reconciled (null = unreconciled)
+  transaction_id: string; // Groups lines into transactions
+  transaction_name?: string;
+  created_at: Date;
+  reconciled_at: Date | null;
 
   constructor(partial: Partial<Transaction>) {
     this.id = partial.id || uuidv4();

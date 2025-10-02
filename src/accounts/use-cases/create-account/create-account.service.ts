@@ -22,7 +22,6 @@ export class CreateAccountService {
 
     this.accountRepository.save(account);
 
-    // Return API response format with computed balance
     return {
       id: account.id,
       name: account.name,

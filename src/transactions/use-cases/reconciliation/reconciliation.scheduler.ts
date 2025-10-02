@@ -70,7 +70,7 @@ export class ReconciliationScheduler {
     const startTime = Date.now();
 
     try {
-      const result = this.reconciliationService.execute();
+      const result = await this.reconciliationService.execute();
 
       const duration = Date.now() - startTime;
       this.logger.log(

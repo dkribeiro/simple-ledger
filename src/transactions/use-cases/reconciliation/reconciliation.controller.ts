@@ -58,7 +58,7 @@ export class ReconciliationController {
     description:
       'Reconciliation already in progress or too many concurrent updates detected',
   })
-  reconcile() {
+  async reconcile() {
     return this.reconciliationService.execute();
   }
 }

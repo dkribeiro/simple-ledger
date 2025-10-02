@@ -5,14 +5,8 @@ export class Account {
   id: string;
   name?: string;
   direction: Direction;
-
-  // Event-sourced balance: Instead of storing a mutable balance,
-  // we maintain a "closed" snapshot and calculate the current balance
-  // from the closed balance + unreconciled transactions
-  closed_balance: number; // Snapshot of balance from reconciled transactions (cents)
-
-  // Optimistic locking: Version is incremented on each update to prevent race conditions
-  version: number; // Incremented atomically on each closed_balance update
+  closed_balance: number; // Snapshot from reconciled transactions (cents)
+  version: number; // Optimistic locking for concurrent updates
 
   constructor(partial: Partial<Account>) {
     this.id = partial.id || uuidv4();

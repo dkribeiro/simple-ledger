@@ -37,27 +37,12 @@ export class ReconciliationService {
   /**
    * Reconciles all unreconciled transactions in the system.
    *
-   * This is the ONLY way to reconcile transactions. It operates on transactions,
-   * not individual accounts, ensuring consistency across all accounts.
-   *
-   * Purpose:
-   * - Performance optimization: Creates balance snapshots (closed_balance) to avoid
-   *   scanning all transactions on every account query
-   * - Only unreconciled transactions need to be summed for balance calculation
-   * - Should be run frequently based on transaction volume, not just at period-end
-   *
-   * Use cases:
-   * - Regular performance maintenance (e.g., hourly, daily)
-   * - End-of-period closing (day, month, year)
-   * - When balance queries become slow
-   *
    * Process:
    * 1. Verifies all transaction groups balance to zero
-   * 2. Gets all unreconciled transaction groups
-   * 3. Marks all unreconciled transactions as reconciled
-   * 4. Updates closed_balance for all affected accounts
+   * 2. Marks all unreconciled transactions as reconciled
+   * 3. Updates closed_balance for all affected accounts (with retry on conflict)
    */
-  execute(): ReconciliationResult {
+  async execute(): Promise<ReconciliationResult> {
     // Lock check: Prevent concurrent reconciliations
     if (this.reconciliationInProgress) {
       throw new ConflictException(
@@ -91,7 +76,7 @@ export class ReconciliationService {
       });
 
       // 4. Update closed_balance for all affected accounts (with retry logic)
-      const accountSummaries = this.updateAccountClosedBalances();
+      const accountSummaries = await this.updateAccountClosedBalances();
 
       const totalRetries = accountSummaries.reduce(
         (sum, summary) => sum + summary.retries,
@@ -137,28 +122,23 @@ export class ReconciliationService {
    * Update closed_balance for all accounts that have transactions.
    * Returns a summary of changes for each account.
    *
-   * Uses optimistic locking with retry logic to handle concurrent updates:
-   * - Fetches account and checks version
-   * - Computes new balance
-   * - Attempts to update with version check
-   * - If version conflict detected, retries the entire process
-   * - Gives up after MAX_RETRIES attempts
+   * Uses optimistic locking with retry logic to handle concurrent updates.
    */
-  private updateAccountClosedBalances(): AccountReconciliationSummary[] {
+  private async updateAccountClosedBalances(): Promise<
+    AccountReconciliationSummary[]
+  > {
     const accountIds = this.getAllAccountIdsWithTransactions();
     const summaries: AccountReconciliationSummary[] = [];
 
     for (const accountId of accountIds) {
       try {
-        const summary = this.updateAccountWithRetry(accountId);
+        const summary = await this.updateAccountWithRetry(accountId);
         summaries.push(summary);
       } catch (error) {
         this.logger.error(
           `Failed to update account ${accountId} after retries:`,
           error,
         );
-        // In production, you might want to collect these failures
-        // and return them in the result for manual intervention
       }
     }
 
@@ -168,9 +148,9 @@ export class ReconciliationService {
   /**
    * Update a single account's closed_balance with optimistic locking retry logic.
    */
-  private updateAccountWithRetry(
+  private async updateAccountWithRetry(
     accountId: string,
-  ): AccountReconciliationSummary {
+  ): Promise<AccountReconciliationSummary> {
     let retries = 0;
 
     while (retries <= this.MAX_RETRIES) {
@@ -221,9 +201,9 @@ export class ReconciliationService {
             );
           }
 
-          // Small delay before retry (exponential backoff)
+          // Exponential backoff before retry
           const delay = Math.min(100 * Math.pow(2, retries - 1), 1000);
-          this.sleep(delay);
+          await this.sleep(delay);
           continue;
         }
 
@@ -236,24 +216,17 @@ export class ReconciliationService {
     throw new Error(`Unexpected state in updateAccountWithRetry`);
   }
 
-  /**
-   * Simple synchronous sleep for retry delays.
-   */
-  private sleep(ms: number): void {
-    const start = Date.now();
-    while (Date.now() - start < ms) {
-      // Busy wait (not ideal, but simple for this use case)
-    }
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  /**
-   * Get all unique account IDs that have transactions in the system.
-   */
   private getAllAccountIdsWithTransactions(): string[] {
-    const allTransactions = this.transactionRepository.findAll();
-    const accountIds = new Set(
-      allTransactions.map((transaction) => transaction.account_id),
-    );
+    const accountIds = new Set<string>();
+    this.transactionRepository.getAllTransactionIds().forEach((txId) => {
+      this.transactionRepository
+        .findByTransactionId(txId)
+        .forEach((t) => accountIds.add(t.account_id));
+    });
     return Array.from(accountIds);
   }
 }

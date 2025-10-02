@@ -13,13 +13,10 @@ export class GetAccountService {
   execute(id: string): AccountResponse {
     const account = this.accountRepository.findByIdOrFail(id);
 
-    // Compute the current balance from closed_balance + unclosed transactions
-    const balance = this.computeBalanceService.execute(account);
-
     return {
       id: account.id,
       name: account.name,
-      balance,
+      balance: this.computeBalanceService.execute(account),
       direction: account.direction,
     };
   }
