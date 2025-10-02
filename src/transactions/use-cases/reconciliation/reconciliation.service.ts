@@ -39,8 +39,9 @@ export class ReconciliationService {
    *
    * Process:
    * 1. Verifies all transaction groups balance to zero
-   * 2. Marks all unreconciled transactions as reconciled
-   * 3. Updates closed_balance for all affected accounts (with retry on conflict)
+   * 2. Computes new balances for all affected accounts (BEFORE marking as reconciled)
+   * 3. Marks all unreconciled transactions as reconciled
+   * 4. Updates closed_balance for all affected accounts with pre-computed values
    */
   async execute(): Promise<ReconciliationResult> {
     // Lock check: Prevent concurrent reconciliations
@@ -67,7 +68,10 @@ export class ReconciliationService {
         `Found ${unreconciledTransactionIds.length} unreconciled transaction groups`,
       );
 
-      // 3. Mark ALL unreconciled transactions as reconciled
+      // 3. Compute new balances BEFORE marking as reconciled (critical!)
+      const newBalances = await this.computeNewBalances();
+
+      // 4. Mark ALL unreconciled transactions as reconciled
       unreconciledTransactionIds.forEach((transactionId) => {
         this.transactionRepository.reconcileTransactionGroup(
           transactionId,
@@ -75,8 +79,9 @@ export class ReconciliationService {
         );
       });
 
-      // 4. Update closed_balance for all affected accounts (with retry logic)
-      const accountSummaries = await this.updateAccountClosedBalances();
+      // 5. Update closed_balance for all affected accounts with pre-computed values
+      const accountSummaries =
+        await this.updateAccountClosedBalances(newBalances);
 
       const totalRetries = accountSummaries.reduce(
         (sum, summary) => sum + summary.retries,
@@ -119,20 +124,39 @@ export class ReconciliationService {
   }
 
   /**
-   * Update closed_balance for all accounts that have transactions.
+   * Compute new balances for all accounts BEFORE marking transactions as reconciled.
+   * This is critical because computeBalanceService uses unreconciled transactions.
+   */
+  private computeNewBalances(): Map<string, number> {
+    const accountIds = this.getAllAccountIdsWithTransactions();
+    const balances = new Map<string, number>();
+
+    for (const accountId of accountIds) {
+      const account = this.accountRepository.findByIdOrFail(accountId);
+      const newBalance = this.computeBalanceService.execute(account);
+      balances.set(accountId, newBalance);
+    }
+
+    return balances;
+  }
+
+  /**
+   * Update closed_balance for all accounts using pre-computed balances.
    * Returns a summary of changes for each account.
    *
    * Uses optimistic locking with retry logic to handle concurrent updates.
    */
-  private async updateAccountClosedBalances(): Promise<
-    AccountReconciliationSummary[]
-  > {
-    const accountIds = this.getAllAccountIdsWithTransactions();
+  private async updateAccountClosedBalances(
+    newBalances: Map<string, number>,
+  ): Promise<AccountReconciliationSummary[]> {
     const summaries: AccountReconciliationSummary[] = [];
 
-    for (const accountId of accountIds) {
+    for (const [accountId, newBalance] of newBalances.entries()) {
       try {
-        const summary = await this.updateAccountWithRetry(accountId);
+        const summary = await this.updateAccountWithRetry(
+          accountId,
+          newBalance,
+        );
         summaries.push(summary);
       } catch (error) {
         this.logger.error(
@@ -147,9 +171,11 @@ export class ReconciliationService {
 
   /**
    * Update a single account's closed_balance with optimistic locking retry logic.
+   * Uses the pre-computed balance to avoid recomputing after transactions are marked as reconciled.
    */
   private async updateAccountWithRetry(
     accountId: string,
+    newBalance: number,
   ): Promise<AccountReconciliationSummary> {
     let retries = 0;
 
@@ -160,10 +186,7 @@ export class ReconciliationService {
         const previousBalance = account.closed_balance;
         const currentVersion = account.version;
 
-        // Compute new balance
-        const newBalance = this.computeBalanceService.execute(account);
-
-        // Count unreconciled transactions (should be 0 now, but count for audit)
+        // Count unreconciled transactions for audit (now reconciled, so should be 0)
         const accountTransactions =
           this.transactionRepository.findByAccountId(accountId);
         const unreconciledCount = accountTransactions.filter(
